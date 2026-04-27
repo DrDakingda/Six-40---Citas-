@@ -7,11 +7,11 @@ defined( 'ABSPATH' ) || exit;
  */
 class Six40_Google_Calendar {
 
-    private function settings(): array {
+    private function settings() {
         return (array) get_option( 'six40_settings', [] );
     }
 
-    private function calendar_id( string $location ): string {
+    private function calendar_id( $location ) {
         $cfg = $this->settings();
         return $location === 'malaga'
             ? ( $cfg['google_calendar_malaga'] ?? '' )
@@ -21,7 +21,7 @@ class Six40_Google_Calendar {
     /**
      * Creates a Calendar event for a confirmed appointment.
      */
-    public function create_event( array $appointment ): bool|WP_Error {
+    public function create_event( $appointment ) {
         $calendar_id = $this->calendar_id( $appointment['location'] ?? '' );
         if ( ! $calendar_id ) {
             return new WP_Error( 'no_calendar', 'Google Calendar ID not configured.' );
@@ -85,7 +85,7 @@ class Six40_Google_Calendar {
 
     // ── OAuth2 ────────────────────────────────────────────────────────────────
 
-    private function get_access_token(): string|WP_Error {
+    private function get_access_token() {
         $cached = get_transient( 'six40_google_access_token' );
         if ( $cached ) return $cached;
 
@@ -119,7 +119,7 @@ class Six40_Google_Calendar {
         return $data['access_token'];
     }
 
-    public function get_auth_url(): string {
+    public function get_auth_url() {
         $cfg          = $this->settings();
         $redirect_uri = admin_url( 'admin.php?page=six40-settings&oauth=google' );
         return 'https://accounts.google.com/o/oauth2/auth?' . http_build_query( [
@@ -132,7 +132,7 @@ class Six40_Google_Calendar {
         ] );
     }
 
-    public function exchange_code( string $code ): bool|WP_Error {
+    public function exchange_code( $code ) {
         $cfg          = $this->settings();
         $redirect_uri = admin_url( 'admin.php?page=six40-settings&oauth=google' );
 

@@ -5,7 +5,7 @@ class Six40_Admin_Panel {
 
     private static ?self $instance = null;
 
-    public static function get_instance(): self {
+    public static function get_instance() {
         if ( null === self::$instance ) self::$instance = new self();
         return self::$instance;
     }
@@ -20,7 +20,7 @@ class Six40_Admin_Panel {
         add_action( 'admin_init',            [ $this, 'handle_oauth_callback' ] );
     }
 
-    public function register_menus(): void {
+    public function register_menus() {
         add_menu_page( 'Six40 Booking', 'Six40 Booking', 'manage_options', 'six40-dashboard',
             [ $this, 'page_dashboard' ], 'dashicons-calendar-alt', 26 );
         add_submenu_page( 'six40-dashboard', 'Dashboard',    'Dashboard',    'manage_options', 'six40-dashboard', [ $this, 'page_dashboard' ] );
@@ -29,7 +29,7 @@ class Six40_Admin_Panel {
         add_submenu_page( 'six40-dashboard', 'Configuración','Configuración','manage_options', 'six40-settings',  [ $this, 'page_settings' ] );
     }
 
-    public function enqueue_assets( string $hook ): void {
+    public function enqueue_assets( $hook ) {
         if ( strpos( $hook, 'six40' ) === false ) return;
         wp_enqueue_style(  'six40-admin', SIX40_PLUGIN_URL . 'admin/css/admin.css', [], SIX40_VERSION );
         wp_enqueue_script( 'six40-admin', SIX40_PLUGIN_URL . 'admin/js/admin.js',  [ 'jquery' ], SIX40_VERSION, true );
@@ -41,7 +41,7 @@ class Six40_Admin_Panel {
 
     // ── Pages ─────────────────────────────────────────────────────────────────
 
-    public function page_dashboard(): void {
+    public function page_dashboard() {
         $api         = new Six40_Booking_API();
         $today       = wp_date( 'Y-m-d' );
         $today_appts = $api->get_appointments( [ 'date' => $today ] );
@@ -54,7 +54,7 @@ class Six40_Admin_Panel {
         require SIX40_PLUGIN_DIR . 'admin/dashboard.php';
     }
 
-    public function page_citas(): void {
+    public function page_citas() {
         $api      = new Six40_Booking_API();
         $location = sanitize_text_field( $_GET['location'] ?? '' );
         $date_from = sanitize_text_field( $_GET['date_from'] ?? '' );
@@ -73,13 +73,13 @@ class Six40_Admin_Panel {
         require SIX40_PLUGIN_DIR . 'admin/dashboard.php';
     }
 
-    public function page_barberos(): void {
+    public function page_barberos() {
         $api      = new Six40_Booking_API();
         $statuses = $api->get_barber_statuses();
         require SIX40_PLUGIN_DIR . 'admin/dashboard.php';
     }
 
-    public function page_settings(): void {
+    public function page_settings() {
         $cfg       = (array) get_option( 'six40_settings', [] );
         $calendar  = new Six40_Google_Calendar();
         $auth_url  = $calendar->get_auth_url();
@@ -89,7 +89,7 @@ class Six40_Admin_Panel {
 
     // ── Handlers ──────────────────────────────────────────────────────────────
 
-    public function handle_save_settings(): void {
+    public function handle_save_settings() {
         if ( ! current_user_can( 'manage_options' ) ) wp_die( 'Unauthorized' );
         check_admin_referer( 'six40_save_settings' );
 
@@ -104,7 +104,7 @@ class Six40_Admin_Panel {
         exit;
     }
 
-    public function handle_oauth_callback(): void {
+    public function handle_oauth_callback() {
         if ( ( $_GET['page'] ?? '' ) !== 'six40-settings' ) return;
         if ( ( $_GET['oauth'] ?? '' ) !== 'google' ) return;
         if ( empty( $_GET['code'] ) || ! current_user_can( 'manage_options' ) ) return;
@@ -118,7 +118,7 @@ class Six40_Admin_Panel {
 
     // ── AJAX ──────────────────────────────────────────────────────────────────
 
-    public function ajax_update_appt_status(): void {
+    public function ajax_update_appt_status() {
         check_ajax_referer( 'six40_admin_nonce', 'nonce' );
         if ( ! current_user_can( 'manage_options' ) ) wp_send_json_error( 'Unauthorized' );
 
@@ -139,7 +139,7 @@ class Six40_Admin_Panel {
         wp_send_json_success( [ 'status' => $status ] );
     }
 
-    public function ajax_update_barber_status(): void {
+    public function ajax_update_barber_status() {
         check_ajax_referer( 'six40_admin_nonce', 'nonce' );
         if ( ! current_user_can( 'manage_options' ) ) wp_send_json_error( 'Unauthorized' );
 
@@ -153,7 +153,7 @@ class Six40_Admin_Panel {
         wp_send_json_success( [ 'barber_id' => $barber_id, 'status' => $status ] );
     }
 
-    public function ajax_get_appointments_json(): void {
+    public function ajax_get_appointments_json() {
         check_ajax_referer( 'six40_admin_nonce', 'nonce' );
         if ( ! current_user_can( 'manage_options' ) ) wp_send_json_error( 'Unauthorized' );
 

@@ -6,11 +6,11 @@ defined( 'ABSPATH' ) || exit;
  */
 class Six40_Email {
 
-    private function settings(): array {
+    private function settings() {
         return (array) get_option( 'six40_settings', [] );
     }
 
-    public function send_confirmation( array $appointment ): bool|WP_Error {
+    public function send_confirmation( $appointment ) {
         $email = $appointment['customer_email'] ?? '';
         if ( ! is_email( $email ) ) {
             return new WP_Error( 'invalid_email', 'Invalid customer email.' );
@@ -36,7 +36,7 @@ class Six40_Email {
         );
     }
 
-    public function send_cancellation( array $appointment ): bool|WP_Error {
+    public function send_cancellation( $appointment ) {
         $email = $appointment['customer_email'] ?? '';
         if ( ! is_email( $email ) ) {
             return new WP_Error( 'invalid_email', 'Invalid customer email.' );
@@ -51,7 +51,7 @@ class Six40_Email {
 
     // ── Resend / wp_mail ───────────────────────────────────────────────────────
 
-    private function send( string $to, string $name, string $subject, string $html ): bool|WP_Error {
+    private function send( $to, $name, $subject, $html ) {
         $cfg     = $this->settings();
         $api_key = $cfg['resend_api_key'] ?? '';
 
@@ -93,7 +93,7 @@ class Six40_Email {
 
     // ── Templates ─────────────────────────────────────────────────────────────
 
-    private function tpl_confirmation( array $d ): string {
+    private function tpl_confirmation( $d ) {
         ob_start(); ?>
 <!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
 <body style="margin:0;padding:0;background:#f5f5f5;font-family:'Helvetica Neue',Arial,sans-serif;">
@@ -151,7 +151,7 @@ class Six40_Email {
         <?php return ob_get_clean();
     }
 
-    private function tpl_cancellation( array $a ): string {
+    private function tpl_cancellation( $a ) {
         $name = $a['customer_name'] ?? 'Cliente';
         ob_start(); ?>
 <!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"></head>
@@ -178,7 +178,7 @@ class Six40_Email {
         <?php return ob_get_clean();
     }
 
-    private function format_date( string $date ): string {
+    private function format_date( $date ) {
         if ( ! $date ) return '';
         $months = [ '01'=>'enero','02'=>'febrero','03'=>'marzo','04'=>'abril','05'=>'mayo','06'=>'junio',
                     '07'=>'julio','08'=>'agosto','09'=>'septiembre','10'=>'octubre','11'=>'noviembre','12'=>'diciembre' ];
