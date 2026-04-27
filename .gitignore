@@ -1,0 +1,16 @@
+# WordPress
+*.log
+.DS_Store
+Thumbs.db
+
+# Dependencies
+/vendor/
+/node_modules/
+
+# Build artifacts
+*.zip
+
+# Secrets (nunca commitear)
+.env
+.env.local
+wp-config.php
