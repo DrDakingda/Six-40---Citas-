@@ -24,6 +24,11 @@ require_once SIX40_PLUGIN_DIR . 'includes/class-email.php';
 require_once SIX40_PLUGIN_DIR . 'includes/class-admin-panel.php';
 require_once SIX40_PLUGIN_DIR . 'assets/shortcode.php';
 
+// Carga configuración local si existe (nunca va a git).
+if ( file_exists( SIX40_PLUGIN_DIR . 'six40-config.php' ) ) {
+    require_once SIX40_PLUGIN_DIR . 'six40-config.php';
+}
+
 // ── Activation / Deactivation ──────────────────────────────────────────────────
 register_activation_hook( __FILE__, 'six40_activate' );
 register_deactivation_hook( __FILE__, 'six40_deactivate' );
