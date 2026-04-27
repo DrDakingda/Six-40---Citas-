@@ -90,14 +90,16 @@ class Six40_Booking_API {
             return [];
         }
 
-        $slots_needed    = self::SERVICES[ $service ]['slots'];
-        $barber_statuses = $this->get_barber_statuses( $location );
+        $slots_needed       = self::SERVICES[ $service ]['slots'];
+        $barber_statuses    = $this->get_barber_statuses( $location );
+        $barbers_on_day_off = $this->get_barber_ids_off_on_date( $date );
 
         $available_barbers = array_filter(
             self::BARBERS,
-            function( $b ) use ( $location, $barber_statuses ) {
+            function( $b ) use ( $location, $barber_statuses, $barbers_on_day_off ) {
                 return $b['location'] === $location
-                    && ( $barber_statuses[ $b['id'] ] ?? 'available' ) === 'available';
+                    && ( $barber_statuses[ $b['id'] ] ?? 'available' ) === 'available'
+                    && ! in_array( $b['id'], $barbers_on_day_off, true );
             }
         );
 
@@ -226,6 +228,36 @@ class Six40_Booking_API {
         return $this->supabase_request( 'PATCH', 'appointments?id=eq.' . $id, [ 'status' => $status ] );
     }
 
+    public function get_barber_days_off( $barber_id, $year_month ) {
+        $from   = $year_month . '-01';
+        $to     = $year_month . '-' . date( 't', strtotime( $from ) );
+        $result = $this->supabase_request( 'GET',
+            'barber_days_off?barber_id=eq.' . intval( $barber_id ) .
+            '&date=gte.' . $from . '&date=lte.' . $to . '&select=date,note'
+        );
+        if ( is_wp_error( $result ) || ! is_array( $result ) ) return [];
+        return $result;
+    }
+
+    public function toggle_barber_day_off( $barber_id, $date, $note = '' ) {
+        $existing = $this->supabase_request( 'GET',
+            'barber_days_off?barber_id=eq.' . intval( $barber_id ) . '&date=eq.' . $date . '&select=id'
+        );
+        if ( is_wp_error( $existing ) ) return $existing;
+
+        if ( ! empty( $existing ) ) {
+            return $this->supabase_request( 'DELETE',
+                'barber_days_off?barber_id=eq.' . intval( $barber_id ) . '&date=eq.' . $date
+            );
+        }
+
+        return $this->supabase_request( 'POST', 'barber_days_off', [
+            'barber_id' => intval( $barber_id ),
+            'date'      => $date,
+            'note'      => $note,
+        ] );
+    }
+
     public function get_barber_statuses( $location = '' ) {
         $statuses = (array) get_option( 'six40_barber_statuses', [] );
         $result   = [];
@@ -249,6 +281,14 @@ class Six40_Booking_API {
     }
 
     // ── Private helpers ───────────────────────────────────────────────────────
+
+    private function get_barber_ids_off_on_date( $date ) {
+        $result = $this->supabase_request( 'GET',
+            'barber_days_off?date=eq.' . $date . '&select=barber_id'
+        );
+        if ( is_wp_error( $result ) || ! is_array( $result ) ) return [];
+        return array_map( 'intval', array_column( $result, 'barber_id' ) );
+    }
 
     private function generate_day_slots() {
         $slots = [];
@@ -278,12 +318,14 @@ class Six40_Booking_API {
     }
 
     private function find_free_barber( $location, $date, $time, $slots_needed ) {
-        $barber_statuses = $this->get_barber_statuses( $location );
+        $barber_statuses    = $this->get_barber_statuses( $location );
+        $barbers_on_day_off = $this->get_barber_ids_off_on_date( $date );
         $available = array_filter(
             self::BARBERS,
-            function( $b ) use ( $location, $barber_statuses ) {
+            function( $b ) use ( $location, $barber_statuses, $barbers_on_day_off ) {
                 return $b['location'] === $location
-                    && ( $barber_statuses[ $b['id'] ] ?? 'available' ) === 'available';
+                    && ( $barber_statuses[ $b['id'] ] ?? 'available' ) === 'available'
+                    && ! in_array( $b['id'], $barbers_on_day_off, true );
             }
         );
 

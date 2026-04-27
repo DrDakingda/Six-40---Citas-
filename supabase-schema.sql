@@ -61,6 +61,26 @@ WHERE date = CURRENT_DATE ORDER BY time;
 -- ID 8  Adrián Ortigosa   — Torremolinos
 -- ============================================================
 
+-- ============================================================
+-- Tabla: días libres específicos por barbero
+-- ============================================================
+CREATE TABLE IF NOT EXISTS public.barber_days_off (
+  id         BIGSERIAL   PRIMARY KEY,
+  barber_id  SMALLINT    NOT NULL CHECK (barber_id BETWEEN 1 AND 8),
+  date       DATE        NOT NULL,
+  note       TEXT        DEFAULT '',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (barber_id, date)
+);
+
+CREATE INDEX IF NOT EXISTS idx_days_off_barber_date ON public.barber_days_off (barber_id, date);
+CREATE INDEX IF NOT EXISTS idx_days_off_date        ON public.barber_days_off (date);
+
+ALTER TABLE public.barber_days_off ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "doff_read"   ON public.barber_days_off FOR SELECT USING (true);
+CREATE POLICY "doff_insert" ON public.barber_days_off FOR INSERT WITH CHECK (true);
+CREATE POLICY "doff_delete" ON public.barber_days_off FOR DELETE USING (true);
+
 -- Datos de prueba (descomenta para testing)
 /*
 INSERT INTO public.appointments (location,service,date,time,end_time,barber_id,customer_name,customer_email,status) VALUES

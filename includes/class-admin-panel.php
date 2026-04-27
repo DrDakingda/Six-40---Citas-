@@ -17,6 +17,8 @@ class Six40_Admin_Panel {
         add_action( 'wp_ajax_six40_update_appt_status',    [ $this, 'ajax_update_appt_status' ] );
         add_action( 'wp_ajax_six40_update_barber_status',  [ $this, 'ajax_update_barber_status' ] );
         add_action( 'wp_ajax_six40_get_appointments_json', [ $this, 'ajax_get_appointments_json' ] );
+        add_action( 'wp_ajax_six40_get_days_off',          [ $this, 'ajax_get_days_off' ] );
+        add_action( 'wp_ajax_six40_toggle_day_off',        [ $this, 'ajax_toggle_day_off' ] );
         add_action( 'admin_init',            [ $this, 'handle_oauth_callback' ] );
     }
 
@@ -151,6 +153,41 @@ class Six40_Admin_Panel {
             wp_send_json_error( 'Could not update barber status.' );
         }
         wp_send_json_success( [ 'barber_id' => $barber_id, 'status' => $status ] );
+    }
+
+    public function ajax_get_days_off() {
+        check_ajax_referer( 'six40_admin_nonce', 'nonce' );
+        if ( ! current_user_can( 'manage_options' ) ) wp_send_json_error( 'Unauthorized' );
+
+        $barber_id  = intval( $_REQUEST['barber_id'] ?? 0 );
+        $year_month = sanitize_text_field( $_REQUEST['year_month'] ?? '' );
+
+        if ( ! $barber_id || ! preg_match( '/^\d{4}-\d{2}$/', $year_month ) ) {
+            wp_send_json_error( 'Invalid parameters.' );
+        }
+
+        $api    = new Six40_Booking_API();
+        $result = $api->get_barber_days_off( $barber_id, $year_month );
+        wp_send_json_success( array_column( $result, 'date' ) );
+    }
+
+    public function ajax_toggle_day_off() {
+        check_ajax_referer( 'six40_admin_nonce', 'nonce' );
+        if ( ! current_user_can( 'manage_options' ) ) wp_send_json_error( 'Unauthorized' );
+
+        $barber_id = intval( $_POST['barber_id'] ?? 0 );
+        $date      = sanitize_text_field( $_POST['date'] ?? '' );
+        $note      = sanitize_text_field( $_POST['note'] ?? '' );
+
+        if ( ! $barber_id || ! preg_match( '/^\d{4}-\d{2}-\d{2}$/', $date ) ) {
+            wp_send_json_error( 'Invalid parameters.' );
+        }
+
+        $api    = new Six40_Booking_API();
+        $result = $api->toggle_barber_day_off( $barber_id, $date, $note );
+
+        if ( is_wp_error( $result ) ) wp_send_json_error( $result->get_error_message() );
+        wp_send_json_success( [ 'date' => $date ] );
     }
 
     public function ajax_get_appointments_json() {
