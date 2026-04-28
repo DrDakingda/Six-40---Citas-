@@ -2,181 +2,260 @@
 (function ($) {
   'use strict';
 
-  var form         = document.getElementById('six40-form');
-  var successPanel = document.getElementById('six40-success');
+  var wrap    = document.getElementById('six40-booking');
+  var form    = document.getElementById('six40-form');
+  var success = document.getElementById('six40-success');
   if (!form) return;
 
+  // ── Datos ─────────────────────────────────────────────────────────────────
+  var TOTAL_STEPS = 9;
   var currentStep = 1;
+  var skipBarberStep = false; // true si mode=auto
 
   var barbersByLocation = {
-    malaga: { 1:'Samuel Puertas', 2:'Graciela Arcos', 3:'Adrián Ortigosa', 4:'Alejandro Alfonso' },
-    torremolinos: { 5:'Antonio Pérez', 6:'Graciela Arcos', 7:'Juan Jose García', 8:'Adrián Ortigosa' }
+    malaga:       { 1:'Samuel Puertas', 2:'Graciela Arcos', 3:'Adrián Ortigosa', 4:'Alejandro Alfonso' },
+    torremolinos: { 5:'Antonio Pérez',  6:'Graciela Arcos', 7:'Juan Jose García', 8:'Adrián Ortigosa'  }
   };
-  var serviceLabels  = { barba:'Barba (15 min)', corte:'Corte (30 min)', corte_barba:'Corte + Barba (45 min)' };
-  var locationLabels = { malaga:'Málaga', torremolinos:'Torremolinos' };
+
+  var svcLabels  = { barba:'Barba (15 min)', corte:'Corte (30 min)', corte_barba:'Corte + Barba (45 min)' };
+  var locLabels  = { malaga:'Málaga', torremolinos:'Torremolinos' };
+
+  // ── Progreso ──────────────────────────────────────────────────────────────
+  function updateProgress(step) {
+    var pct = Math.round(((step - 1) / (TOTAL_STEPS - 1)) * 100);
+    $('#tf-progress-bar').css('width', pct + '%');
+    $('#tf-prev').prop('disabled', step <= 1);
+    $('#tf-next').prop('disabled', step >= TOTAL_STEPS);
+  }
 
   // ── Navegación ────────────────────────────────────────────────────────────
-  function goToStep(step) {
-    $(form).find('.six40-form-step').addClass('six40-hidden');
-    $(form).find('.six40-form-step[data-step="' + step + '"]').removeClass('six40-hidden');
+  function goTo(step, direction) {
+    if (step < 1 || step > TOTAL_STEPS) return;
+
+    // Saltar paso 3 (barbero) si modo=auto
+    if (step === 3 && skipBarberStep) {
+      step = direction === 'next' ? 4 : 2;
+    }
+
+    var $current = $('.tf-step.active');
+    var $next    = $('.tf-step[data-step="' + step + '"]');
+
+    if (!$next.length) return;
+
+    // Animar salida
+    $current.addClass(direction === 'next' ? 'exit-up' : 'exit-down').removeClass('active');
+    setTimeout(function () { $current.removeClass('exit-up exit-down'); }, 420);
+
+    // Animar entrada
+    $next.addClass(direction === 'next' ? 'enter-down' : 'enter-up');
+    setTimeout(function () {
+      $next.removeClass('enter-down enter-up').addClass('active');
+      // Focus en primer input del paso
+      $next.find('.tf-text-input, .tf-date-input').first().trigger('focus');
+    }, 30);
+
     currentStep = step;
-    updateIndicators(step);
-    if (step === 6) populateSummary();
-    $('html,body').animate({ scrollTop: $('#six40-booking').offset().top - 60 }, 250);
+    updateProgress(step);
+
+    // Si llega al paso resumen, rellenarlo
+    if (step === 9) populateSummary();
+
+    // Si llega al paso de slots (5), cargar
+    if (step === 5) loadSlots();
   }
 
-  function updateIndicators(active) {
-    $('.six40-step').each(function () {
-      var s = parseInt($(this).data('step'), 10);
-      $(this).removeClass('active done');
-      if (s === active) $(this).addClass('active');
-      else if (s < active) $(this).addClass('done');
-    });
-    $('.six40-step-connector').each(function (i) {
-      $(this).toggleClass('done', i + 1 < active);
-    });
+  function nextStep() {
+    if (!validateStep(currentStep)) return;
+    goTo(currentStep + 1, 'next');
   }
 
-  // ── Validación ────────────────────────────────────────────────────────────
-  function clearErrors() {
-    $('.six40-field-error').text('');
-    $('.six40-input').removeClass('invalid');
+  function prevStep() {
+    goTo(currentStep - 1, 'prev');
   }
 
-  function showError(id, msg) {
-    $('#err-' + id).text(msg);
-    if (['name','email','date'].indexOf(id) !== -1) $('#six40-' + id).addClass('invalid');
-  }
+  // ── Botones nav ──────────────────────────────────────────────────────────
+  $('#tf-prev').on('click', prevStep);
+  $('#tf-next').on('click', function () { nextStep(); });
 
-  function validateStep(step) {
-    clearErrors();
-    var valid = true;
-    if (step === 1) {
-      if (!$('input[name="location"]:checked').val()) { showError('location','Por favor, selecciona un local.'); valid=false; }
+  // ── Tecla Enter / Escape ──────────────────────────────────────────────────
+  $(document).on('keydown', function (e) {
+    if (!$(wrap).length) return;
+    // Solo si el foco está dentro del formulario
+    if (e.key === 'Enter' && !$(e.target).is('textarea')) {
+      e.preventDefault();
+      nextStep();
     }
-    if (step === 2) {
-      var mode = $('input[name="booking_mode"]:checked').val();
-      if (!mode) { showError('mode','Por favor, elige cómo quieres reservar.'); valid=false; }
-      if (mode === 'barber' && (!$('#six40-barber-id').val() || $('#six40-barber-id').val() === '0')) {
-        showError('barber','Por favor, selecciona un barbero.'); valid=false;
-      }
-    }
-    if (step === 3) {
-      if (!$('#six40-date').val()) { showError('date','Por favor, selecciona una fecha.'); valid=false; }
-      if (!$('#six40-time').val()) { showError('time','Por favor, selecciona una hora.'); valid=false; }
-    }
-    if (step === 4) {
-      if (!$('input[name="service"]:checked').val()) { showError('service','Por favor, selecciona un servicio.'); valid=false; }
-    }
-    if (step === 5) {
-      var name  = $('#six40-name').val().trim();
-      var email = $('#six40-email').val().trim();
-      if (!name || name.length < 2) { showError('name','Por favor, introduce tu nombre completo.'); valid=false; }
-      if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showError('email','Por favor, introduce un email válido.'); valid=false; }
-    }
-    return valid;
-  }
-
-  $(document).on('click', '.six40-btn-next', function () {
-    if (validateStep(currentStep)) goToStep(parseInt($(this).data('next'), 10));
-  });
-  $(document).on('click', '.six40-btn-prev', function () {
-    clearErrors(); goToStep(parseInt($(this).data('prev'), 10));
+    if (e.key === 'ArrowDown') { e.preventDefault(); nextStep(); }
+    if (e.key === 'ArrowUp')   { e.preventDefault(); prevStep(); }
   });
 
-  // ── Modo reserva ──────────────────────────────────────────────────────────
-  $(document).on('change', 'input[name="booking_mode"]', function () {
-    var mode     = $(this).val();
-    var location = $('input[name="location"]:checked').val();
-    if (mode === 'barber') {
-      renderBarberCards(location);
-      $('#six40-barber-picker').removeClass('six40-hidden');
-    } else {
-      $('#six40-barber-picker').addClass('six40-hidden');
-      $('#six40-barber-id').val('0');
+  // ── Cards de opción (auto-avance) ─────────────────────────────────────────
+  $(document).on('click', '.tf-card', function () {
+    var $btn   = $(this);
+    var field  = $btn.data('field');
+    var value  = $btn.data('value');
+
+    // Deseleccionar hermanos
+    $btn.closest('.tf-cards').find('.tf-card').removeClass('selected');
+    $btn.addClass('selected');
+
+    // Guardar valor en hidden input
+    $('#tf-' + field).val(value);
+
+    // Lógica especial: si elige modo
+    if (field === 'booking_mode') {
+      skipBarberStep = (value === 'auto');
+      if (value === 'barber') renderBarberCards($('#tf-location').val());
     }
-    resetSlots();
+
+    // Auto-avanzar tras breve pausa
+    setTimeout(nextStep, 380);
   });
 
+  // ── Barberos ──────────────────────────────────────────────────────────────
   function renderBarberCards(location) {
     var barbers = barbersByLocation[location] || {};
     var html = '';
     $.each(barbers, function (id, name) {
-      html += '<div class="six40-barber-pick-card" data-id="' + id + '">' +
-              '<div class="six40-barber-pick-avatar">' + name.charAt(0) + '</div>' +
-              '<div class="six40-barber-pick-name">' + name + '</div>' +
-              '</div>';
+      html += '<button type="button" class="tf-barber-card" data-id="' + id + '">' +
+              '<div class="tf-barber-avatar">' + name.charAt(0) + '</div>' +
+              '<div class="tf-barber-name">' + name + '</div>' +
+              '</button>';
     });
-    $('#six40-barber-cards').html(html);
+    $('#tf-barber-cards').html(html);
   }
 
-  $(document).on('click', '.six40-barber-pick-card', function () {
-    $('.six40-barber-pick-card').removeClass('selected');
+  $(document).on('click', '.tf-barber-card', function () {
+    $('.tf-barber-card').removeClass('selected');
     $(this).addClass('selected');
-    $('#six40-barber-id').val($(this).data('id'));
-    $('#err-barber').text('');
-    resetSlots();
+    $('#tf-barber-id').val($(this).data('id'));
+    setTimeout(nextStep, 380);
   });
 
-  // ── Slots ─────────────────────────────────────────────────────────────────
-  $('#six40-date').on('change', function () {
-    var date     = $(this).val();
-    var location = $('input[name="location"]:checked').val();
-    var bid      = $('#six40-barber-id').val() || '0';
-    $('#six40-time').val(''); $('#err-time').text('');
-    if (!date || !location) { resetSlots(); return; }
-    loadSlots(location, date, bid);
+  // ── Botones Ok y fecha ────────────────────────────────────────────────────
+  $('#tf-date-ok').on('click', nextStep);
+  $('#tf-name-ok').on('click', nextStep);
+  $('#tf-email-ok').on('click', nextStep);
+
+  $('#tf-date').on('change', function () {
+    // Limpiar hora cuando cambia la fecha
+    $('#tf-time').val('');
+    $('.tf-slot').removeClass('selected');
   });
 
-  function loadSlots(location, date, barberId) {
-    $('#six40-slots-container').html('<p class="six40-slots-loading"><span class="six40-spinner"></span>' + six40Ajax.strings.loading + '</p>');
+  // ── Carga de slots ────────────────────────────────────────────────────────
+  function loadSlots() {
+    var location = $('#tf-location').val();
+    var date     = $('#tf-date').val();
+    var barberId = $('#tf-barber-id').val() || '0';
+
+    if (!date || !location) {
+      $('#tf-slots-container').html('<p class="tf-muted">Selecciona primero la fecha.</p>');
+      return;
+    }
+
+    $('#tf-slots-container').html(
+      '<div class="tf-slots-loading"><div class="tf-spinner"></div><span>' + six40Ajax.strings.loading + '</span></div>'
+    );
+
     $.post(six40Ajax.ajaxUrl, {
-      action:'six40_get_slots', nonce:six40Ajax.nonce,
-      location:location, date:date, service:'corte', barber_id:barberId
+      action:    'six40_get_slots',
+      nonce:     six40Ajax.nonce,
+      location:  location,
+      date:      date,
+      service:   'corte',
+      barber_id: barberId
     }, function (res) {
-      if (!res.success || !res.data) { $('#six40-slots-container').html('<div class="six40-no-slots">' + six40Ajax.strings.error + '</div>'); return; }
+      if (!res.success || !res.data || !res.data.slots) {
+        $('#tf-slots-container').html('<div class="tf-no-slots">' + six40Ajax.strings.error + '</div>');
+        return;
+      }
       renderSlots(res.data.slots);
-    }).fail(function () { $('#six40-slots-container').html('<div class="six40-no-slots">' + six40Ajax.strings.error + '</div>'); });
+    }).fail(function () {
+      $('#tf-slots-container').html('<div class="tf-no-slots">' + six40Ajax.strings.error + '</div>');
+    });
   }
 
   function renderSlots(slots) {
-    if (!slots || !slots.length) { $('#six40-slots-container').html('<div class="six40-no-slots">' + six40Ajax.strings.noSlots + '</div>'); return; }
-    var html = '<div class="six40-slots-grid">';
-    slots.forEach(function (s) { html += '<button type="button" class="six40-slot-btn" data-time="' + s + '">' + s + '</button>'; });
+    if (!slots || !slots.length) {
+      $('#tf-slots-container').html('<div class="tf-no-slots">' + six40Ajax.strings.noSlots + '</div>');
+      return;
+    }
+
+    var currentTime = $('#tf-time').val();
+    var html = '<div class="tf-slots-grid">';
+    slots.forEach(function (s) {
+      var sel = (s === currentTime) ? ' selected' : '';
+      html += '<button type="button" class="tf-slot' + sel + '" data-time="' + s + '">' + s + '</button>';
+    });
     html += '</div>';
-    $('#six40-slots-container').html(html);
+    $('#tf-slots-container').html(html);
   }
 
-  function resetSlots() {
-    $('#six40-time').val('');
-    $('#six40-date').val('');
-    $('#six40-slots-container').html('<p class="six40-slots-hint">' + six40Ajax.strings.selectDate + '</p>');
-  }
-
-  $(document).on('click', '.six40-slot-btn', function () {
-    $('.six40-slot-btn').removeClass('selected');
+  $(document).on('click', '.tf-slot', function () {
+    $('.tf-slot').removeClass('selected');
     $(this).addClass('selected');
-    $('#six40-time').val($(this).data('time'));
+    $('#tf-time').val($(this).data('time'));
     $('#err-time').text('');
+    // Auto-avanzar tras elegir hora
+    setTimeout(nextStep, 380);
   });
+
+  // ── Validación ────────────────────────────────────────────────────────────
+  function clearErrors() { $('.tf-error').text(''); }
+
+  function validateStep(step) {
+    clearErrors();
+    if (step === 1 && !$('#tf-location').val()) {
+      $('#err-location').text('Por favor, selecciona un local.'); return false;
+    }
+    if (step === 2 && !$('#tf-mode').val()) {
+      $('#err-mode').text('Por favor, elige cómo quieres reservar.'); return false;
+    }
+    if (step === 3 && !skipBarberStep && (!$('#tf-barber-id').val() || $('#tf-barber-id').val() === '0')) {
+      $('#err-barber').text('Por favor, selecciona un barbero.'); return false;
+    }
+    if (step === 4 && !$('#tf-date').val()) {
+      $('#err-date').text('Por favor, selecciona una fecha.'); return false;
+    }
+    if (step === 5 && !$('#tf-time').val()) {
+      $('#err-time').text('Por favor, selecciona una hora.'); return false;
+    }
+    if (step === 6 && !$('#tf-service').val()) {
+      $('#err-service').text('Por favor, selecciona un servicio.'); return false;
+    }
+    if (step === 7) {
+      var name = $('#tf-name').val().trim();
+      if (!name || name.length < 2) { $('#err-name').text('Introduce tu nombre completo.'); return false; }
+    }
+    if (step === 8) {
+      var email = $('#tf-email').val().trim();
+      if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        $('#err-email').text('Introduce un email válido.'); return false;
+      }
+    }
+    return true;
+  }
 
   // ── Resumen ───────────────────────────────────────────────────────────────
   function populateSummary() {
-    var location = $('input[name="location"]:checked').val() || '';
-    var barberId = $('#six40-barber-id').val() || '0';
-    var mode     = $('input[name="booking_mode"]:checked').val() || '';
-    var service  = $('input[name="service"]:checked').val() || '';
-    var barberName = (mode === 'barber' && barberId !== '0' && barbersByLocation[location])
-      ? (barbersByLocation[location][barberId] || 'Primer disponible')
-      : 'Primer disponible';
+    var location = $('#tf-location').val() || '';
+    var barberId = $('#tf-barber-id').val() || '0';
+    var mode     = $('#tf-mode').val() || '';
+    var service  = $('#tf-service').val() || '';
 
-    $('#sum-location').text(locationLabels[location] || location);
+    var barberName = 'Primer disponible';
+    if (mode === 'barber' && barberId !== '0' && barbersByLocation[location]) {
+      barberName = barbersByLocation[location][barberId] || 'Primer disponible';
+    }
+
+    $('#sum-location').text(locLabels[location] || location);
     $('#sum-barber').text(barberName);
-    $('#sum-date').text(formatDate($('#six40-date').val()));
-    $('#sum-time').text($('#six40-time').val());
-    $('#sum-service').text(serviceLabels[service] || service);
-    $('#sum-name').text($('#six40-name').val().trim());
-    $('#sum-email').text($('#six40-email').val().trim());
+    $('#sum-date').text(formatDate($('#tf-date').val()));
+    $('#sum-time').text($('#tf-time').val());
+    $('#sum-service').text(svcLabels[service] || service);
+    $('#sum-name').text($('#tf-name').val().trim());
+    $('#sum-email').text($('#tf-email').val().trim());
   }
 
   function formatDate(d) {
@@ -192,44 +271,56 @@
   $(form).on('submit', function (e) {
     e.preventDefault();
     var $btn = $('#six40-submit');
-    $btn.prop('disabled',true).find('.six40-submit-text').addClass('six40-hidden');
-    $btn.find('.six40-submit-loading').removeClass('six40-hidden');
-    $('#six40-global-error').addClass('six40-hidden').text('');
+    $btn.prop('disabled',true).find('.tf-submit-text').addClass('tf-hidden');
+    $btn.find('.tf-submit-loading').removeClass('tf-hidden');
+    $('#six40-global-error').addClass('tf-hidden').text('');
 
     $.post(six40Ajax.ajaxUrl, {
-      action:'six40_submit_booking', nonce:six40Ajax.nonce,
-      location:$('input[name="location"]:checked').val(),
-      service:$('input[name="service"]:checked').val(),
-      date:$('#six40-date').val(), time:$('#six40-time').val(),
-      name:$('#six40-name').val().trim(), email:$('#six40-email').val().trim(),
-      barber_id:$('#six40-barber-id').val() || 0
+      action:    'six40_submit_booking',
+      nonce:     six40Ajax.nonce,
+      location:  $('#tf-location').val(),
+      service:   $('#tf-service').val(),
+      date:      $('#tf-date').val(),
+      time:      $('#tf-time').val(),
+      name:      $('#tf-name').val().trim(),
+      email:     $('#tf-email').val().trim(),
+      barber_id: $('#tf-barber-id').val() || 0
     }, function (res) {
-      $btn.prop('disabled',false).find('.six40-submit-text').removeClass('six40-hidden');
-      $btn.find('.six40-submit-loading').addClass('six40-hidden');
+      $btn.prop('disabled',false).find('.tf-submit-text').removeClass('tf-hidden');
+      $btn.find('.tf-submit-loading').addClass('tf-hidden');
       if (res.success) {
-        $(form).addClass('six40-hidden'); $('.six40-steps').addClass('six40-hidden'); $(successPanel).removeClass('six40-hidden');
+        $(form).addClass('tf-hidden');
+        $('#tf-nav').addClass('tf-hidden');
+        $('.tf-progress').addClass('tf-hidden');
+        $(success).removeClass('tf-hidden');
       } else {
         var msg = (res.data && res.data.message) ? res.data.message : six40Ajax.strings.error;
-        $('#six40-global-error').removeClass('six40-hidden').text(msg);
-        $('html,body').animate({ scrollTop:$('#six40-global-error').offset().top - 80 }, 250);
+        $('#six40-global-error').removeClass('tf-hidden').text(msg);
       }
     }).fail(function () {
-      $btn.prop('disabled',false).find('.six40-submit-text').removeClass('six40-hidden');
-      $btn.find('.six40-submit-loading').addClass('six40-hidden');
-      $('#six40-global-error').removeClass('six40-hidden').text(six40Ajax.strings.error);
+      $btn.prop('disabled',false).find('.tf-submit-text').removeClass('tf-hidden');
+      $btn.find('.tf-submit-loading').addClass('tf-hidden');
+      $('#six40-global-error').removeClass('tf-hidden').text(six40Ajax.strings.error);
     });
   });
 
+  // ── Nueva reserva ─────────────────────────────────────────────────────────
   $('#six40-new-booking').on('click', function () {
     form.reset();
-    $('#six40-barber-id').val('0');
-    $('#six40-barber-picker').addClass('six40-hidden');
-    $('#six40-barber-cards').html('');
-    resetSlots(); clearErrors();
-    $(successPanel).addClass('six40-hidden'); $(form).removeClass('six40-hidden'); $('.six40-steps').removeClass('six40-hidden');
-    goToStep(1);
+    $('#tf-location, #tf-mode, #tf-service, #tf-time').val('');
+    $('#tf-barber-id').val('0');
+    $('.tf-card, .tf-barber-card, .tf-slot').removeClass('selected');
+    skipBarberStep = false;
+    clearErrors();
+    $(success).addClass('tf-hidden');
+    $(form).removeClass('tf-hidden');
+    $('#tf-nav').removeClass('tf-hidden');
+    $('.tf-progress').removeClass('tf-hidden');
+    $('.tf-step').removeClass('active exit-up exit-down enter-down enter-up');
+    goTo(1, 'next');
   });
 
-  goToStep(1);
+  // ── Init ──────────────────────────────────────────────────────────────────
+  updateProgress(1);
 
 })(jQuery);
