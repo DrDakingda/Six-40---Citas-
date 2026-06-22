@@ -1,12 +1,27 @@
 <?php
 defined( 'ABSPATH' ) || exit;
 
-$services = [
-    'barba'       => [ 'label' => 'Barba',         'desc' => '15 min', 'icon' => '🪒' ],
-    'corte'       => [ 'label' => 'Corte',         'desc' => '30 min', 'icon' => '✂️' ],
-    'corte_barba' => [ 'label' => 'Corte + Barba', 'desc' => '45 min', 'icon' => '💈' ],
-];
-$today   = wp_date( 'Y-m-d' );
+// Fetch services from Supabase
+$api = new Six40_Booking_API();
+$all_services = $api->get_services();
+
+if ( is_wp_error( $all_services ) ) {
+    $all_services = [];
+}
+
+// Separate base and additional services
+$base_services = [];
+$additional_services = [];
+
+foreach ( $all_services as $svc ) {
+    if ( $svc['type'] === 'base' ) {
+        $base_services[] = $svc;
+    } elseif ( $svc['type'] === 'additional' ) {
+        $additional_services[] = $svc;
+    }
+}
+
+$today = wp_date( 'Y-m-d' );
 $max_day = wp_date( 'Y-m-d', strtotime( '+60 days' ) );
 ?>
 <div class="tf-wrap" id="six40-booking">
@@ -34,7 +49,7 @@ $max_day = wp_date( 'Y-m-d', strtotime( '+60 days' ) );
             <span class="tf-card-letter">B</span>
             <span class="tf-card-content">
               <strong>Torremolinos</strong>
-              <small>Antonio · Graciela · Juan · Adrián</small>
+              <small>Antonio · Juan · Graciela · Adrián</small>
             </span>
           </button>
         </div>
@@ -105,30 +120,60 @@ $max_day = wp_date( 'Y-m-d', strtotime( '+60 days' ) );
         <div id="tf-slots-container">
           <p class="tf-muted">Cargando horarios disponibles…</p>
         </div>
-        <input type="hidden" name="time" id="tf-time" required>
-        <p class="tf-error" id="err-time"></p>
+        <input type="hidden" name="start_time" id="tf-start-time" required>
+        <p class="tf-error" id="err-start_time"></p>
       </div>
     </div>
 
-    <!-- PASO 6: SERVICIO -->
+    <!-- PASO 6: SERVICIOS (base + adicionales) -->
     <div class="tf-step" data-step="6">
       <div class="tf-step-inner">
         <p class="tf-step-num">06 <span class="tf-arrow">→</span></p>
         <h2 class="tf-question">¿Qué servicio quieres?</h2>
-        <div class="tf-cards tf-cards--3">
-          <?php $letters = ['A','B','C']; $i = 0;
-          foreach ( $services as $k => $s ) : ?>
-          <button type="button" class="tf-card" data-field="service" data-value="<?= esc_attr($k) ?>">
-            <span class="tf-card-letter"><?= $letters[$i++] ?></span>
-            <span class="tf-card-content">
-              <strong><?= $s['icon'] ?> <?= esc_html($s['label']) ?></strong>
-              <small><?= esc_html($s['desc']) ?></small>
-            </span>
-          </button>
-          <?php endforeach; ?>
+
+        <!-- Servicio base (required) -->
+        <div class="tf-service-section">
+          <h3 class="tf-service-title">Servicio principal</h3>
+          <div class="tf-cards tf-cards--3">
+            <?php $letters = ['A','B','C','D','E','F']; $i = 0;
+            foreach ( $base_services as $svc ) : ?>
+            <button type="button" class="tf-card tf-card-base-service"
+                    data-field="base_service_id"
+                    data-value="<?= esc_attr( $svc['id'] ) ?>"
+                    data-duration="<?= esc_attr( $svc['duration'] ) ?>">
+              <span class="tf-card-letter"><?= $letters[ $i++ ] ?></span>
+              <span class="tf-card-content">
+                <strong><?= esc_html( $svc['name'] ) ?></strong>
+                <small><?= esc_html( $svc['duration'] ) ?> min</small>
+              </span>
+            </button>
+            <?php endforeach; ?>
+          </div>
         </div>
-        <input type="hidden" name="service" id="tf-service">
-        <p class="tf-error" id="err-service"></p>
+
+        <!-- Servicios adicionales (optional) -->
+        <?php if ( ! empty( $additional_services ) ) : ?>
+        <div class="tf-service-section">
+          <h3 class="tf-service-title">Servicios adicionales (+20 min cada uno)</h3>
+          <p class="tf-service-hint">Selecciona los que quieras. Se suman al servicio principal.</p>
+          <div class="tf-checkboxes">
+            <?php foreach ( $additional_services as $svc ) : ?>
+            <label class="tf-checkbox-label">
+              <input type="checkbox" class="tf-checkbox-input tf-additional-service"
+                     name="additional_service_ids[]"
+                     value="<?= esc_attr( $svc['id'] ) ?>"
+                     data-duration="<?= esc_attr( $svc['duration'] ) ?>">
+              <span class="tf-checkbox-custom"></span>
+              <span class="tf-checkbox-text"><?= esc_html( $svc['name'] ) ?></span>
+            </label>
+            <?php endforeach; ?>
+          </div>
+        </div>
+        <?php endif; ?>
+
+        <input type="hidden" name="base_service_id" id="tf-base-service-id" required>
+        <p class="tf-error" id="err-base_service_id"></p>
+        <p class="tf-service-summary" id="tf-service-summary"></p>
       </div>
     </div>
 
@@ -137,9 +182,9 @@ $max_day = wp_date( 'Y-m-d', strtotime( '+60 days' ) );
       <div class="tf-step-inner">
         <p class="tf-step-num">07 <span class="tf-arrow">→</span></p>
         <h2 class="tf-question">¿Cómo te llamas?</h2>
-        <input type="text" id="tf-name" name="name" class="tf-text-input"
+        <input type="text" id="tf-customer-name" name="customer_name" class="tf-text-input"
                placeholder="Tu nombre completo" required maxlength="100" autocomplete="name">
-        <p class="tf-error" id="err-name"></p>
+        <p class="tf-error" id="err-customer_name"></p>
         <div class="tf-actions">
           <button type="button" class="tf-btn-ok" id="tf-name-ok">Ok <span class="tf-check">✓</span></button>
           <span class="tf-hint">pulsa <kbd>Enter ↵</kbd></span>
@@ -153,9 +198,9 @@ $max_day = wp_date( 'Y-m-d', strtotime( '+60 days' ) );
         <p class="tf-step-num">08 <span class="tf-arrow">→</span></p>
         <h2 class="tf-question">¿Tu email?</h2>
         <p class="tf-sub">Te enviaremos la confirmación aquí</p>
-        <input type="email" id="tf-email" name="email" class="tf-text-input"
+        <input type="email" id="tf-customer-email" name="customer_email" class="tf-text-input"
                placeholder="tucorreo@ejemplo.com" required maxlength="150" autocomplete="email">
-        <p class="tf-error" id="err-email"></p>
+        <p class="tf-error" id="err-customer_email"></p>
         <div class="tf-actions">
           <button type="button" class="tf-btn-ok" id="tf-email-ok">Ok <span class="tf-check">✓</span></button>
           <span class="tf-hint">pulsa <kbd>Enter ↵</kbd></span>
@@ -163,19 +208,36 @@ $max_day = wp_date( 'Y-m-d', strtotime( '+60 days' ) );
       </div>
     </div>
 
-    <!-- PASO 9: RESUMEN -->
+    <!-- PASO 9: TELÉFONO (opcional) -->
     <div class="tf-step" data-step="9">
-      <div class="tf-step-inner tf-summary">
+      <div class="tf-step-inner">
         <p class="tf-step-num">09 <span class="tf-arrow">→</span></p>
+        <h2 class="tf-question">¿Tu teléfono? (opcional)</h2>
+        <input type="tel" id="tf-customer-phone" name="customer_phone" class="tf-text-input"
+               placeholder="Ej: 600 123 456" maxlength="20" autocomplete="tel">
+        <p class="tf-error" id="err-customer_phone"></p>
+        <div class="tf-actions">
+          <button type="button" class="tf-btn-ok" id="tf-phone-ok">Ok <span class="tf-check">✓</span></button>
+          <span class="tf-hint">pulsa <kbd>Enter ↵</kbd> para saltar</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- PASO 10: RESUMEN -->
+    <div class="tf-step" data-step="10">
+      <div class="tf-step-inner tf-summary">
+        <p class="tf-step-num">10 <span class="tf-arrow">→</span></p>
         <h2 class="tf-question">Confirma tu cita</h2>
         <div class="tf-summary-grid">
-          <div class="tf-summary-item"><span class="tf-sum-label">📍 Local</span>    <span class="tf-sum-value" id="sum-location">—</span></div>
-          <div class="tf-summary-item"><span class="tf-sum-label">💈 Barbero/a</span><span class="tf-sum-value" id="sum-barber">—</span></div>
-          <div class="tf-summary-item"><span class="tf-sum-label">📅 Fecha</span>    <span class="tf-sum-value" id="sum-date">—</span></div>
-          <div class="tf-summary-item"><span class="tf-sum-label">🕐 Hora</span>     <span class="tf-sum-value" id="sum-time">—</span></div>
-          <div class="tf-summary-item"><span class="tf-sum-label">✂️ Servicio</span> <span class="tf-sum-value" id="sum-service">—</span></div>
-          <div class="tf-summary-item"><span class="tf-sum-label">👤 Nombre</span>   <span class="tf-sum-value" id="sum-name">—</span></div>
-          <div class="tf-summary-item"><span class="tf-sum-label">📧 Email</span>    <span class="tf-sum-value" id="sum-email">—</span></div>
+          <div class="tf-summary-item"><span class="tf-sum-label">📍 Local</span>           <span class="tf-sum-value" id="sum-location">—</span></div>
+          <div class="tf-summary-item"><span class="tf-sum-label">💈 Barbero/a</span>     <span class="tf-sum-value" id="sum-barber">—</span></div>
+          <div class="tf-summary-item"><span class="tf-sum-label">📅 Fecha</span>           <span class="tf-sum-value" id="sum-date">—</span></div>
+          <div class="tf-summary-item"><span class="tf-sum-label">🕐 Hora</span>            <span class="tf-sum-value" id="sum-time">—</span></div>
+          <div class="tf-summary-item"><span class="tf-sum-label">✂️ Servicios</span>       <span class="tf-sum-value" id="sum-services">—</span></div>
+          <div class="tf-summary-item"><span class="tf-sum-label">⏱️ Duración</span>        <span class="tf-sum-value" id="sum-duration">—</span></div>
+          <div class="tf-summary-item"><span class="tf-sum-label">👤 Nombre</span>          <span class="tf-sum-value" id="sum-name">—</span></div>
+          <div class="tf-summary-item"><span class="tf-sum-label">📧 Email</span>           <span class="tf-sum-value" id="sum-email">—</span></div>
+          <div class="tf-summary-item"><span class="tf-sum-label">📱 Teléfono</span>       <span class="tf-sum-value" id="sum-phone">—</span></div>
         </div>
         <button type="submit" class="tf-btn-submit" id="six40-submit">
           <span class="tf-submit-text">Confirmar cita</span>

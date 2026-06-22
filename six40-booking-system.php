@@ -96,9 +96,10 @@ function six40_ajax_get_slots() {
 
     $location = sanitize_text_field( $_POST['location'] ?? '' );
     $date     = sanitize_text_field( $_POST['date'] ?? '' );
-    $service  = sanitize_text_field( $_POST['service'] ?? '' );
+    $base_service_id = intval( $_POST['base_service_id'] ?? 0 );
+    $additional_ids = array_map( 'intval', (array) ( $_POST['additional_service_ids'] ?? [] ) );
 
-    if ( ! $location || ! $date || ! $service ) {
+    if ( ! $location || ! $date || ! $base_service_id ) {
         wp_send_json_error( [ 'message' => __( 'Parámetros inválidos.', 'six40-booking' ) ] );
     }
     if ( ! preg_match( '/^\d{4}-\d{2}-\d{2}$/', $date ) ) {
@@ -106,7 +107,8 @@ function six40_ajax_get_slots() {
     }
 
     $api   = new Six40_Booking_API();
-    $slots = $api->get_available_slots( $location, $date, $service );
+    $service_ids = array_merge( [ $base_service_id ], $additional_ids );
+    $slots = $api->get_available_slots( $location, $date, $service_ids );
 
     if ( is_wp_error( $slots ) ) {
         wp_send_json_error( [ 'message' => $slots->get_error_message() ] );
@@ -119,26 +121,38 @@ function six40_ajax_get_slots() {
 function six40_ajax_submit_booking() {
     check_ajax_referer( 'six40_booking_nonce', 'nonce' );
 
-    $location  = sanitize_text_field( $_POST['location'] ?? '' );
-    $service   = sanitize_text_field( $_POST['service'] ?? '' );
-    $date      = sanitize_text_field( $_POST['date'] ?? '' );
-    $time      = sanitize_text_field( $_POST['time'] ?? '' );
-    $name      = sanitize_text_field( $_POST['name'] ?? '' );
-    $email     = sanitize_email( $_POST['email'] ?? '' );
+    $location = sanitize_text_field( $_POST['location'] ?? '' );
+    $base_service_id = intval( $_POST['base_service_id'] ?? 0 );
+    $additional_ids = array_map( 'intval', (array) ( $_POST['additional_service_ids'] ?? [] ) );
+    $date = sanitize_text_field( $_POST['date'] ?? '' );
+    $start_time = sanitize_text_field( $_POST['start_time'] ?? '' );
+    $customer_name = sanitize_text_field( $_POST['customer_name'] ?? '' );
+    $customer_email = sanitize_email( $_POST['customer_email'] ?? '' );
+    $customer_phone = sanitize_text_field( $_POST['customer_phone'] ?? '' );
     $barber_id = intval( $_POST['barber_id'] ?? 0 );
 
-    if ( ! $location || ! $service || ! $date || ! $time || ! $name || ! is_email( $email ) ) {
+    if ( ! $location || ! $base_service_id || ! $date || ! $start_time || ! $customer_name || ! is_email( $customer_email ) ) {
         wp_send_json_error( [ 'message' => __( 'Por favor, completa todos los campos correctamente.', 'six40-booking' ) ] );
     }
     if ( ! preg_match( '/^\d{4}-\d{2}-\d{2}$/', $date ) ) {
         wp_send_json_error( [ 'message' => __( 'Fecha inválida.', 'six40-booking' ) ] );
     }
-    if ( ! preg_match( '/^\d{2}:\d{2}$/', $time ) ) {
+    if ( ! preg_match( '/^\d{2}:\d{2}$/', $start_time ) ) {
         wp_send_json_error( [ 'message' => __( 'Hora inválida.', 'six40-booking' ) ] );
     }
 
-    $api    = new Six40_Booking_API();
-    $result = $api->create_appointment( compact( 'location', 'service', 'date', 'time', 'name', 'email', 'barber_id' ) );
+    $api = new Six40_Booking_API();
+    $result = $api->create_appointment( [
+        'location' => $location,
+        'base_service_id' => $base_service_id,
+        'additional_service_ids' => $additional_ids,
+        'date' => $date,
+        'start_time' => $start_time,
+        'customer_name' => $customer_name,
+        'customer_email' => $customer_email,
+        'customer_phone' => $customer_phone,
+        'barber_id' => $barber_id,
+    ] );
 
     if ( is_wp_error( $result ) ) {
         wp_send_json_error( [ 'message' => $result->get_error_message() ] );

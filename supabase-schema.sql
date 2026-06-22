@@ -1,31 +1,179 @@
 -- ============================================================
--- Six40 Booking System — Supabase Schema
+-- Six40 Booking System — Supabase Schema (v2.0)
 -- Ejecutar en: Supabase → SQL Editor
 -- ============================================================
 
-CREATE TABLE IF NOT EXISTS public.appointments (
-  id               BIGSERIAL PRIMARY KEY,
-  location         TEXT        NOT NULL CHECK (location IN ('malaga', 'torremolinos')),
-  service          TEXT        NOT NULL CHECK (service IN ('barba', 'corte', 'corte_barba')),
-  date             DATE        NOT NULL,
-  time             TIME        NOT NULL,
-  end_time         TIME        NOT NULL,
-  barber_id        SMALLINT    NOT NULL CHECK (barber_id BETWEEN 1 AND 8),
-  customer_name    TEXT        NOT NULL,
-  customer_email   TEXT        NOT NULL,
-  status           TEXT        NOT NULL DEFAULT 'confirmed'
-                                 CHECK (status IN ('confirmed', 'completed', 'cancelled', 'no_show')),
-  notes            TEXT,
-  created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()
+-- ============================================================
+-- 1. TABLA: Barberos
+-- ============================================================
+CREATE TABLE IF NOT EXISTS public.barbers (
+  id              SMALLINT PRIMARY KEY,
+  name            TEXT NOT NULL,
+  location        TEXT NOT NULL CHECK (location IN ('malaga', 'torremolinos')),
+  active          BOOLEAN NOT NULL DEFAULT true,
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Datos iniciales
+INSERT INTO public.barbers (id, name, location) VALUES
+  (1, 'Samuel Puertas', 'malaga'),
+  (2, 'Graciela Arcos', 'malaga'),
+  (3, 'Adrián Ortigosa', 'malaga'),
+  (4, 'Alejandro Alfonso', 'malaga'),
+  (5, 'Antonio Pérez', 'torremolinos'),
+  (6, 'Graciela Arcos', 'torremolinos'),
+  (7, 'Juan Jose García', 'torremolinos'),
+  (8, 'Adrián Ortigosa', 'torremolinos')
+ON CONFLICT (id) DO NOTHING;
+
+-- ============================================================
+-- 2. TABLA: Horarios por barbero y día
+-- ============================================================
+-- day_of_week: 0=Lunes, 1=Martes, 2=Miércoles, 3=Jueves, 4=Viernes, 5=Sábado, 6=Domingo
+CREATE TABLE IF NOT EXISTS public.barber_schedules (
+  id              BIGSERIAL PRIMARY KEY,
+  barber_id       SMALLINT NOT NULL REFERENCES public.barbers(id) ON DELETE CASCADE,
+  day_of_week     SMALLINT NOT NULL CHECK (day_of_week BETWEEN 0 AND 6),
+  start_time      TIME NOT NULL,
+  end_time        TIME NOT NULL,
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (barber_id, day_of_week, start_time)
 );
 
 -- Índices
-CREATE INDEX IF NOT EXISTS idx_appt_date          ON public.appointments (date);
-CREATE INDEX IF NOT EXISTS idx_appt_location_date ON public.appointments (location, date);
-CREATE INDEX IF NOT EXISTS idx_appt_barber_date   ON public.appointments (barber_id, date);
-CREATE INDEX IF NOT EXISTS idx_appt_status        ON public.appointments (status);
-CREATE INDEX IF NOT EXISTS idx_appt_email         ON public.appointments (customer_email);
+CREATE INDEX IF NOT EXISTS idx_barber_schedules_barber ON public.barber_schedules (barber_id);
+CREATE INDEX IF NOT EXISTS idx_barber_schedules_day    ON public.barber_schedules (day_of_week);
+
+-- RLS
+ALTER TABLE public.barber_schedules ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "sched_read" ON public.barber_schedules FOR SELECT USING (true);
+
+-- Datos iniciales (MÁLAGA)
+INSERT INTO public.barber_schedules (barber_id, day_of_week, start_time, end_time) VALUES
+  -- Graciela (Lun-Sab 10-14)
+  (2, 0, '10:00'::time, '14:00'::time),
+  (2, 1, '10:00'::time, '14:00'::time),
+  (2, 2, '10:00'::time, '14:00'::time),
+  (2, 3, '10:00'::time, '14:00'::time),
+  (2, 4, '10:00'::time, '14:00'::time),
+  (2, 5, '10:00'::time, '14:00'::time),
+
+  -- Alejandro (Lun-Vie 10-18)
+  (4, 0, '10:00'::time, '18:00'::time),
+  (4, 1, '10:00'::time, '18:00'::time),
+  (4, 2, '10:00'::time, '18:00'::time),
+  (4, 3, '10:00'::time, '18:00'::time),
+  (4, 4, '10:00'::time, '18:00'::time),
+
+  -- Samuel (Lun-Vie 14-21, Sab 10-14)
+  (1, 0, '14:00'::time, '21:00'::time),
+  (1, 1, '14:00'::time, '21:00'::time),
+  (1, 2, '14:00'::time, '21:00'::time),
+  (1, 3, '14:00'::time, '21:00'::time),
+  (1, 4, '14:00'::time, '21:00'::time),
+  (1, 5, '10:00'::time, '14:00'::time),
+
+  -- Adrián Málaga (Mar y Jue 14-20)
+  (3, 1, '14:00'::time, '20:00'::time),
+  (3, 3, '14:00'::time, '20:00'::time)
+ON CONFLICT DO NOTHING;
+
+-- Datos iniciales (TORREMOLINOS)
+INSERT INTO public.barber_schedules (barber_id, day_of_week, start_time, end_time) VALUES
+  -- Juan (Lun-Mar 14-20, Mié 10-20, Jue-Vie 12-20, Sab 10-14)
+  (7, 0, '14:00'::time, '20:00'::time),
+  (7, 1, '14:00'::time, '20:00'::time),
+  (7, 2, '10:00'::time, '20:00'::time),
+  (7, 3, '12:00'::time, '20:00'::time),
+  (7, 4, '12:00'::time, '20:00'::time),
+  (7, 5, '10:00'::time, '14:00'::time),
+
+  -- Antonio (Lun-Vie 10-14 y 16-20, Sab 10-14)
+  (5, 0, '10:00'::time, '14:00'::time),
+  (5, 0, '16:00'::time, '20:00'::time),
+  (5, 1, '10:00'::time, '14:00'::time),
+  (5, 1, '16:00'::time, '20:00'::time),
+  (5, 2, '10:00'::time, '14:00'::time),
+  (5, 2, '16:00'::time, '20:00'::time),
+  (5, 3, '10:00'::time, '14:00'::time),
+  (5, 3, '16:00'::time, '20:00'::time),
+  (5, 4, '10:00'::time, '14:00'::time),
+  (5, 4, '16:00'::time, '20:00'::time),
+  (5, 5, '10:00'::time, '14:00'::time),
+
+  -- Adrián Torremolinos (Lun 10-14, Mar 10-13, Mié 14-20, Jue 10-13, Vie 10-16)
+  (8, 0, '10:00'::time, '14:00'::time),
+  (8, 1, '10:00'::time, '13:00'::time),
+  (8, 2, '14:00'::time, '20:00'::time),
+  (8, 3, '10:00'::time, '13:00'::time),
+  (8, 4, '10:00'::time, '16:00'::time)
+ON CONFLICT DO NOTHING;
+
+-- ============================================================
+-- 3. TABLA: Servicios
+-- ============================================================
+CREATE TABLE IF NOT EXISTS public.services (
+  id              BIGSERIAL PRIMARY KEY,
+  name            TEXT NOT NULL UNIQUE,
+  duration        SMALLINT NOT NULL CHECK (duration > 0), -- minutos
+  type            TEXT NOT NULL CHECK (type IN ('base', 'additional')), -- base o adicional
+  location        TEXT CHECK (location IS NULL OR location IN ('malaga', 'torremolinos')), -- NULL = ambos
+  active          BOOLEAN NOT NULL DEFAULT true,
+  display_order   SMALLINT DEFAULT 0,
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Índices
+CREATE INDEX IF NOT EXISTS idx_services_type   ON public.services (type);
+CREATE INDEX IF NOT EXISTS idx_services_active ON public.services (active);
+
+-- RLS
+ALTER TABLE public.services ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "svc_read" ON public.services FOR SELECT USING (active = true);
+
+-- Datos iniciales
+INSERT INTO public.services (name, duration, type, location, display_order) VALUES
+  -- Servicios base
+  (1, 'Rapado', 20, 'base', NULL, 1),
+  (2, 'Barba', 20, 'base', NULL, 2),
+  (3, 'Rapado + Barba', 30, 'base', NULL, 3),
+  (4, 'Corte Niño', 30, 'base', NULL, 4),
+  (5, 'Corte', 30, 'base', NULL, 5),
+  (6, 'Corte + Barba', 40, 'base', NULL, 6),
+
+  -- Servicios adicionales (se suman)
+  (7, 'Mechas', 20, 'additional', NULL, 10),
+  (8, 'Iluminaciones', 20, 'additional', NULL, 11),
+  (9, 'Reducción de Canas', 20, 'additional', NULL, 12),
+  (10, 'Color en Barba', 20, 'additional', NULL, 13)
+ON CONFLICT (name) DO NOTHING;
+
+-- ============================================================
+-- 4. TABLA: Citas (actualizada)
+-- ============================================================
+CREATE TABLE IF NOT EXISTS public.appointments (
+  id              BIGSERIAL PRIMARY KEY,
+  location        TEXT NOT NULL CHECK (location IN ('malaga', 'torremolinos')),
+  date            DATE NOT NULL,
+  start_time      TIME NOT NULL,
+  end_time        TIME NOT NULL,
+  barber_id       SMALLINT NOT NULL REFERENCES public.barbers(id) ON DELETE RESTRICT,
+  customer_name   TEXT NOT NULL,
+  customer_email  TEXT NOT NULL,
+  customer_phone  TEXT,
+  status          TEXT NOT NULL DEFAULT 'confirmed'
+                  CHECK (status IN ('confirmed', 'completed', 'cancelled', 'no_show')),
+  notes           TEXT,
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Índices
+CREATE INDEX IF NOT EXISTS idx_appt_date            ON public.appointments (date);
+CREATE INDEX IF NOT EXISTS idx_appt_location_date   ON public.appointments (location, date);
+CREATE INDEX IF NOT EXISTS idx_appt_barber_date     ON public.appointments (barber_id, date);
+CREATE INDEX IF NOT EXISTS idx_appt_status          ON public.appointments (status);
+CREATE INDEX IF NOT EXISTS idx_appt_email           ON public.appointments (customer_email);
 
 -- Trigger updated_at
 CREATE OR REPLACE FUNCTION public.handle_updated_at()
@@ -39,52 +187,91 @@ CREATE TRIGGER set_updated_at
 
 -- RLS
 ALTER TABLE public.appointments ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "read_all"   ON public.appointments FOR SELECT USING (true);
-CREATE POLICY "insert_all" ON public.appointments FOR INSERT WITH CHECK (true);
-CREATE POLICY "update_all" ON public.appointments FOR UPDATE USING (true);
-
--- Vista: citas de hoy
-CREATE OR REPLACE VIEW public.appointments_today AS
-SELECT *, EXTRACT(EPOCH FROM (end_time - time))/60 AS duration_minutes
-FROM public.appointments
-WHERE date = CURRENT_DATE ORDER BY time;
+CREATE POLICY "appt_read"   ON public.appointments FOR SELECT USING (true);
+CREATE POLICY "appt_insert" ON public.appointments FOR INSERT WITH CHECK (true);
+CREATE POLICY "appt_update" ON public.appointments FOR UPDATE USING (true);
 
 -- ============================================================
--- Mapa de barberos (referencia, no tabla — están hardcodeados en el plugin)
--- ID 1  Samuel Puertas    — Málaga
--- ID 2  Graciela Arcos    — Málaga
--- ID 3  Adrián Ortigosa   — Málaga
--- ID 4  Alejandro Alfonso — Málaga
--- ID 5  Antonio Pérez     — Torremolinos
--- ID 6  Graciela Arcos    — Torremolinos
--- ID 7  Juan Jose García  — Torremolinos
--- ID 8  Adrián Ortigosa   — Torremolinos
+-- 5. TABLA: Servicios por cita (muchos-a-muchos)
 -- ============================================================
+CREATE TABLE IF NOT EXISTS public.appointment_services (
+  id              BIGSERIAL PRIMARY KEY,
+  appointment_id  BIGSERIAL NOT NULL REFERENCES public.appointments(id) ON DELETE CASCADE,
+  service_id      BIGSERIAL NOT NULL REFERENCES public.services(id) ON DELETE RESTRICT,
+  sequence        SMALLINT NOT NULL DEFAULT 0, -- orden 0, 1, 2...
+  UNIQUE (appointment_id, service_id)
+);
+
+-- Índices
+CREATE INDEX IF NOT EXISTS idx_appt_svc_appointment ON public.appointment_services (appointment_id);
+CREATE INDEX IF NOT EXISTS idx_appt_svc_service    ON public.appointment_services (service_id);
+
+-- RLS
+ALTER TABLE public.appointment_services ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "appt_svc_read"   ON public.appointment_services FOR SELECT USING (true);
+CREATE POLICY "appt_svc_insert" ON public.appointment_services FOR INSERT WITH CHECK (true);
+CREATE POLICY "appt_svc_delete" ON public.appointment_services FOR DELETE USING (true);
 
 -- ============================================================
--- Tabla: días libres específicos por barbero
+-- 6. TABLA: Días libres específicos por barbero
 -- ============================================================
 CREATE TABLE IF NOT EXISTS public.barber_days_off (
-  id         BIGSERIAL   PRIMARY KEY,
-  barber_id  SMALLINT    NOT NULL CHECK (barber_id BETWEEN 1 AND 8),
-  date       DATE        NOT NULL,
-  note       TEXT        DEFAULT '',
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  id              BIGSERIAL PRIMARY KEY,
+  barber_id       SMALLINT NOT NULL REFERENCES public.barbers(id) ON DELETE CASCADE,
+  date            DATE NOT NULL,
+  note            TEXT DEFAULT '',
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   UNIQUE (barber_id, date)
 );
 
+-- Índices
 CREATE INDEX IF NOT EXISTS idx_days_off_barber_date ON public.barber_days_off (barber_id, date);
 CREATE INDEX IF NOT EXISTS idx_days_off_date        ON public.barber_days_off (date);
 
+-- RLS
 ALTER TABLE public.barber_days_off ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "doff_read"   ON public.barber_days_off FOR SELECT USING (true);
 CREATE POLICY "doff_insert" ON public.barber_days_off FOR INSERT WITH CHECK (true);
 CREATE POLICY "doff_delete" ON public.barber_days_off FOR DELETE USING (true);
 
--- Datos de prueba (descomenta para testing)
-/*
-INSERT INTO public.appointments (location,service,date,time,end_time,barber_id,customer_name,customer_email,status) VALUES
-  ('malaga','corte',CURRENT_DATE,'10:00','10:30',1,'Carlos García','carlos@test.com','confirmed'),
-  ('malaga','barba',CURRENT_DATE,'10:30','10:45',4,'Luis Martínez','luis@test.com','confirmed'),
-  ('torremolinos','corte_barba',CURRENT_DATE,'11:00','11:45',5,'Miguel Sánchez','miguel@test.com','confirmed');
-*/
+-- ============================================================
+-- 7. VISTAS
+-- ============================================================
+
+-- Vista: citas de hoy con servicios y duración
+CREATE OR REPLACE VIEW public.appointments_today AS
+SELECT
+  a.id,
+  a.location,
+  a.date,
+  a.start_time,
+  a.end_time,
+  EXTRACT(EPOCH FROM (a.end_time - a.start_time))/60 AS duration_minutes,
+  a.barber_id,
+  b.name AS barber_name,
+  a.customer_name,
+  a.customer_email,
+  a.customer_phone,
+  a.status,
+  STRING_AGG(s.name, ', ' ORDER BY aps.sequence) AS services
+FROM public.appointments a
+  LEFT JOIN public.barbers b ON a.barber_id = b.id
+  LEFT JOIN public.appointment_services aps ON a.id = aps.appointment_id
+  LEFT JOIN public.services s ON aps.service_id = s.id
+WHERE a.date = CURRENT_DATE
+GROUP BY a.id, b.name
+ORDER BY a.start_time;
+
+-- Vista: disponibilidad de barberos por día
+CREATE OR REPLACE VIEW public.barber_availability AS
+SELECT
+  b.id,
+  b.name,
+  b.location,
+  bs.day_of_week,
+  bs.start_time,
+  bs.end_time,
+  (bs.end_time - bs.start_time) AS working_hours
+FROM public.barbers b
+  LEFT JOIN public.barber_schedules bs ON b.id = bs.barber_id
+WHERE b.active = true;
