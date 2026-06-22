@@ -30,23 +30,38 @@ class Six40_Google_Calendar {
         $token = $this->get_access_token();
         if ( is_wp_error( $token ) ) return $token;
 
-        $service_label = $appointment['service_label'] ?? ( $appointment['service'] ?? '' );
-        $date          = $appointment['date'] ?? '';
-        $time_start    = $appointment['time'] ?? '';
-        $time_end      = $appointment['end_time'] ?? '';
+        // Build service label from services array
+        $service_names = [];
+        if ( ! empty( $appointment['services'] ) && is_array( $appointment['services'] ) ) {
+            foreach ( $appointment['services'] as $svc ) {
+                if ( is_array( $svc ) ) {
+                    $service_names[] = $svc['name'] ?? '';
+                } elseif ( is_string( $svc ) ) {
+                    $service_names[] = $svc;
+                }
+            }
+        }
+        $service_label = ! empty( $service_names ) ? implode( ' + ', array_filter( $service_names ) ) : '—';
+
+        $date       = $appointment['date'] ?? '';
+        $time_start = $appointment['start_time'] ?? '';
+        $time_end   = $appointment['end_time'] ?? '';
 
         if ( ! $date || ! $time_start || ! $time_end ) {
             return new WP_Error( 'invalid_data', 'Appointment data incomplete.' );
         }
 
+        $barber_name = is_array( $appointment['barber'] ?? null ) ? $appointment['barber']['name'] ?? '' : ( $appointment['barber_name'] ?? '' );
+
         $event = [
             'summary'     => sprintf( '%s — %s', $service_label, $appointment['customer_name'] ?? '' ),
             'description' => sprintf(
-                "Cliente: %s\nEmail: %s\nServicio: %s\nBarbero: %s",
+                "Cliente: %s\nEmail: %s\nServicios: %s\nDuración: %d min\nBarbero: %s",
                 $appointment['customer_name'] ?? '',
                 $appointment['customer_email'] ?? '',
                 $service_label,
-                $appointment['barber_name'] ?? ''
+                $appointment['duration'] ?? 0,
+                $barber_name
             ),
             'start' => [ 'dateTime' => "{$date}T{$time_start}:00", 'timeZone' => 'Europe/Madrid' ],
             'end'   => [ 'dateTime' => "{$date}T{$time_end}:00",   'timeZone' => 'Europe/Madrid' ],

@@ -17,15 +17,28 @@ class Six40_Email {
         }
 
         $loc_labels = [ 'malaga' => 'Málaga', 'torremolinos' => 'Torremolinos' ];
-        $svc_labels = [ 'barba' => 'Barba', 'corte' => 'Corte', 'corte_barba' => 'Corte + Barba' ];
+
+        // Build service string from services array
+        $service_names = [];
+        if ( ! empty( $appointment['services'] ) && is_array( $appointment['services'] ) ) {
+            foreach ( $appointment['services'] as $svc ) {
+                if ( is_array( $svc ) ) {
+                    $service_names[] = $svc['name'] ?? '';
+                } elseif ( is_string( $svc ) ) {
+                    $service_names[] = $svc;
+                }
+            }
+        }
+        $service_label = ! empty( $service_names ) ? implode( ' + ', array_filter( $service_names ) ) : '—';
 
         $data = [
             'customer_name'  => $appointment['customer_name'] ?? '',
             'location_label' => $loc_labels[ $appointment['location'] ?? '' ] ?? '',
-            'service_label'  => $appointment['service_label'] ?? $svc_labels[ $appointment['service'] ?? '' ] ?? '',
+            'service_label'  => $service_label,
             'date_fmt'       => $this->format_date( $appointment['date'] ?? '' ),
-            'time_fmt'       => substr( $appointment['time'] ?? '', 0, 5 ),
-            'barber_name'    => $appointment['barber_name'] ?? '',
+            'time_fmt'       => substr( $appointment['start_time'] ?? '', 0, 5 ),
+            'barber_name'    => is_array( $appointment['barber'] ?? null ) ? $appointment['barber']['name'] ?? '' : ( $appointment['barber_name'] ?? '' ),
+            'duration'       => $appointment['duration'] ?? 0,
         ];
 
         return $this->send(
@@ -117,8 +130,12 @@ class Six40_Email {
                 <td style="padding:7px 0;color:#1a1a1a;font-size:15px;font-weight:700;"><?= esc_html( $d['location_label'] ) ?></td>
               </tr>
               <tr>
-                <td style="padding:7px 0;color:#888;font-size:13px;">✂️ Servicio</td>
+                <td style="padding:7px 0;color:#888;font-size:13px;">✂️ Servicio(s)</td>
                 <td style="padding:7px 0;color:#1a1a1a;font-size:15px;font-weight:700;"><?= esc_html( $d['service_label'] ) ?></td>
+              </tr>
+              <tr>
+                <td style="padding:7px 0;color:#888;font-size:13px;">⏱️ Duración</td>
+                <td style="padding:7px 0;color:#1a1a1a;font-size:15px;font-weight:700;"><?= esc_html( $d['duration'] . ' min' ) ?></td>
               </tr>
               <tr>
                 <td style="padding:7px 0;color:#888;font-size:13px;">📅 Fecha</td>
