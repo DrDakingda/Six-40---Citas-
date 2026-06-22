@@ -71,8 +71,15 @@ $page = sanitize_text_field( $_GET['page'] ?? 'six40-dashboard' );
       <?php if ( empty($today_appts) ) : ?>
         <div class="six40-empty">No hay citas para hoy.</div>
       <?php else :
-        $svc_labels = ['barba'=>'Barba','corte'=>'Corte','corte_barba'=>'Corte + Barba'];
-        $barbers_map = Six40_Booking_API::BARBERS;
+        // Load barbers for lookup
+        $api = new Six40_Booking_API();
+        $all_barbers = $api->get_barbers();
+        $barbers_map = [];
+        if ( !is_wp_error( $all_barbers ) ) {
+          foreach ( $all_barbers as $b ) {
+            $barbers_map[ $b['id'] ] = $b['name'];
+          }
+        }
         ?>
         <table class="six40-table">
           <thead><tr><th>Hora</th><th>Cliente</th><th>Servicio</th><th>Local</th><th>Barbero/a</th><th>Estado</th><th>Acción</th></tr></thead>
@@ -82,14 +89,14 @@ $page = sanitize_text_field( $_GET['page'] ?? 'six40-dashboard' );
             $statusLabels = ['confirmed'=>'Confirmada','completed'=>'Completada','cancelled'=>'Cancelada','no_show'=>'No presentó'];
           ?>
           <tr>
-            <td><strong><?= esc_html(substr($appt['time']??'',0,5)) ?></strong></td>
+            <td><strong><?= esc_html(substr($appt['start_time']??'',0,5)) ?></strong></td>
             <td>
               <span class="six40-customer-name"><?= esc_html($appt['customer_name']??'—') ?></span>
               <small class="six40-customer-email"><?= esc_html($appt['customer_email']??'') ?></small>
             </td>
-            <td><?= esc_html($svc_labels[$appt['service']??'']??($appt['service']??'—')) ?></td>
+            <td>—</td>
             <td><?= $appt['location']==='malaga'?'Málaga':'Torremolinos' ?></td>
-            <td><?= esc_html($barbers_map[(int)($appt['barber_id']??0)]['name']??'—') ?></td>
+            <td><?= esc_html($barbers_map[(int)($appt['barber_id']??0)]??'—') ?></td>
             <td><span class="six40-status six40-status--<?= esc_attr($status) ?>"><?= esc_html($statusLabels[$status]??ucfirst($status)) ?></span></td>
             <td>
               <select class="six40-status-select" data-id="<?= esc_attr($appt['id']??'') ?>">
@@ -121,8 +128,14 @@ $page = sanitize_text_field( $_GET['page'] ?? 'six40-dashboard' );
     // ── CITAS ────────────────────────────────────────────────────────────────
     case 'six40-citas':
       $appointments_list = $appointments ?? [];
-      $svc_labels = ['barba'=>'Barba','corte'=>'Corte','corte_barba'=>'Corte + Barba'];
-      $barbers_map = Six40_Booking_API::BARBERS;
+      $api = new Six40_Booking_API();
+      $all_barbers = $api->get_barbers();
+      $barbers_map = [];
+      if ( !is_wp_error( $all_barbers ) ) {
+        foreach ( $all_barbers as $b ) {
+          $barbers_map[ $b['id'] ] = $b['name'];
+        }
+      }
       $statusLabels = ['confirmed'=>'Confirmada','completed'=>'Completada','cancelled'=>'Cancelada','no_show'=>'No presentó'];
     ?>
     <h1 class="six40-page-title">Historial de Citas</h1>
@@ -158,14 +171,14 @@ $page = sanitize_text_field( $_GET['page'] ?? 'six40-dashboard' );
           <tr>
             <td><?= esc_html($appt['id']??'') ?></td>
             <td><?= esc_html(date_i18n('d/m/Y',strtotime($appt['date']??''))) ?></td>
-            <td><?= esc_html(substr($appt['time']??'',0,5)) ?></td>
+            <td><?= esc_html(substr($appt['start_time']??'',0,5)) ?></td>
             <td>
               <?= esc_html($appt['customer_name']??'—') ?>
               <small><?= esc_html($appt['customer_email']??'') ?></small>
             </td>
-            <td><?= esc_html($svc_labels[$appt['service']??'']??($appt['service']??'—')) ?></td>
+            <td>—</td>
             <td><?= $appt['location']==='malaga'?'Málaga':'Torremolinos' ?></td>
-            <td><?= esc_html($barbers_map[(int)($appt['barber_id']??0)]['name']??'—') ?></td>
+            <td><?= esc_html($barbers_map[(int)($appt['barber_id']??0)]??'—') ?></td>
             <td><span class="six40-status six40-status--<?= esc_attr($status) ?>"><?= esc_html($statusLabels[$status]??ucfirst($status)) ?></span></td>
             <td>
               <select class="six40-status-select" data-id="<?= esc_attr($appt['id']??'') ?>">
@@ -184,8 +197,10 @@ $page = sanitize_text_field( $_GET['page'] ?? 'six40-dashboard' );
 
     // ── BARBEROS ─────────────────────────────────────────────────────────────
     case 'six40-barberos':
-      $statuses_all = $statuses ?? (new Six40_Booking_API())->get_barber_statuses();
-      $barbers_list = Six40_Booking_API::BARBERS;
+      $api_barbers = new Six40_Booking_API();
+      $statuses_all = $statuses ?? $api_barbers->get_barber_statuses();
+      $barbers_list_raw = $api_barbers->get_barbers();
+      $barbers_list = is_wp_error($barbers_list_raw) ? [] : $barbers_list_raw;
       $status_labels = ['available'=>'Disponible','vacation'=>'Vacaciones','sick'=>'Baja'];
       $btn_labels    = ['available'=>'✅ Disponible','vacation'=>'🏖️ Vacaciones','sick'=>'🤒 Baja'];
       $locations     = ['malaga'=>'Málaga','torremolinos'=>'Torremolinos'];
