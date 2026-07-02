@@ -1,14 +1,15 @@
 /* ── Six40 × Typeform Style ─────────────────────────────────────────────── */
 
 :root {
-  --tf-bg:      #111111;
-  --tf-surface: #1a1a1a;
-  --tf-gold:    #e8c866;
-  --tf-white:   #ffffff;
-  --tf-muted:   rgba(255,255,255,.45);
-  --tf-border:  rgba(255,255,255,.12);
-  --tf-error:   #ff6b6b;
-  --tf-radius:  10px;
+  --tf-bg:        #000000;
+  --tf-surface:   #0d0d0d;
+  --tf-red:       #b11a2d;
+  --tf-white:     #f8f1f1;
+  --tf-muted:     rgba(248,241,241,.5);
+  --tf-border:    rgba(248,241,241,.14);
+  --tf-on-accent: #f8f1f1;
+  --tf-error:     #ff6b6b;
+  --tf-radius:    10px;
 }
 
 /* ── Contenedor ── */
@@ -31,7 +32,7 @@
 }
 .tf-progress-bar {
   height: 100%;
-  background: var(--tf-gold);
+  background: var(--tf-red);
   transition: width 0.45s cubic-bezier(.4,0,.2,1);
   width: 0%;
 }
@@ -76,7 +77,7 @@
 
 /* ── Número de paso ── */
 .tf-step-num {
-  color: var(--tf-gold);
+  color: var(--tf-red);
   font-size: 13px;
   font-weight: 700;
   letter-spacing: 1px;
@@ -127,13 +128,13 @@
 }
 
 .tf-card:hover {
-  border-color: rgba(232,200,102,.5);
-  background: rgba(232,200,102,.07);
+  border-color: rgba(177,26,45,.5);
+  background: rgba(177,26,45,.07);
 }
 
 .tf-card.selected {
-  border-color: var(--tf-gold);
-  background: rgba(232,200,102,.12);
+  border-color: var(--tf-red);
+  background: rgba(177,26,45,.12);
 }
 
 .tf-card-letter {
@@ -152,9 +153,9 @@
 }
 
 .tf-card.selected .tf-card-letter {
-  background: var(--tf-gold);
-  border-color: var(--tf-gold);
-  color: var(--tf-bg);
+  background: var(--tf-red);
+  border-color: var(--tf-red);
+  color: var(--tf-on-accent);
 }
 
 .tf-card-content {
@@ -194,13 +195,13 @@
 }
 
 .tf-barber-card:hover {
-  border-color: rgba(232,200,102,.5);
-  background: rgba(232,200,102,.07);
+  border-color: rgba(177,26,45,.5);
+  background: rgba(177,26,45,.07);
 }
 
 .tf-barber-card.selected {
-  border-color: var(--tf-gold);
-  background: rgba(232,200,102,.12);
+  border-color: var(--tf-red);
+  background: rgba(177,26,45,.12);
 }
 
 .tf-barber-avatar {
@@ -214,13 +215,13 @@
   align-items: center;
   justify-content: center;
   margin: 0 auto 10px;
-  color: var(--tf-gold);
+  color: var(--tf-red);
   transition: all 0.18s;
 }
 
 .tf-barber-card.selected .tf-barber-avatar {
-  background: var(--tf-gold);
-  color: var(--tf-bg);
+  background: var(--tf-red);
+  color: var(--tf-on-accent);
 }
 
 .tf-barber-name {
@@ -247,7 +248,7 @@
 }
 
 .tf-date-input:focus {
-  border-bottom-color: var(--tf-gold);
+  border-bottom-color: var(--tf-red);
 }
 
 /* ── Input texto ── */
@@ -267,7 +268,7 @@
 }
 
 .tf-text-input::placeholder { color: rgba(255,255,255,.2); font-weight: 400; }
-.tf-text-input:focus { border-bottom-color: var(--tf-gold); }
+.tf-text-input:focus { border-bottom-color: var(--tf-red); }
 
 /* ── Slots ── */
 .tf-slots-grid {
@@ -291,14 +292,14 @@
 }
 
 .tf-slot:hover {
-  border-color: rgba(232,200,102,.5);
-  background: rgba(232,200,102,.07);
+  border-color: rgba(177,26,45,.5);
+  background: rgba(177,26,45,.07);
 }
 
 .tf-slot.selected {
-  background: var(--tf-gold);
-  border-color: var(--tf-gold);
-  color: var(--tf-bg);
+  background: var(--tf-red);
+  border-color: var(--tf-red);
+  color: var(--tf-on-accent);
   font-weight: 700;
 }
 
@@ -315,7 +316,7 @@
   width: 18px;
   height: 18px;
   border: 2px solid rgba(255,255,255,.15);
-  border-top-color: var(--tf-gold);
+  border-top-color: var(--tf-red);
   border-radius: 50%;
   animation: tfspin 0.6s linear infinite;
 }
@@ -344,8 +345,8 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  background: var(--tf-gold);
-  color: var(--tf-bg);
+  background: var(--tf-red);
+  color: var(--tf-on-accent);
   border: none;
   border-radius: 6px;
   padding: 10px 20px;
@@ -418,8 +419,8 @@
   width: 100%;
   margin-top: 24px;
   padding: 16px;
-  background: var(--tf-gold);
-  color: var(--tf-bg);
+  background: var(--tf-red);
+  color: var(--tf-on-accent);
   border: none;
   border-radius: 10px;
   font-size: 17px;
@@ -478,8 +479,8 @@
 }
 
 .tf-nav-btn:hover {
-  background: rgba(232,200,102,.15);
-  border-color: rgba(232,200,102,.4);
+  background: rgba(177,26,45,.15);
+  border-color: rgba(177,26,45,.4);
 }
 
 .tf-nav-btn:disabled { opacity: .25; cursor: default; }
@@ -503,8 +504,8 @@
   width: 72px;
   height: 72px;
   border-radius: 50%;
-  background: var(--tf-gold);
-  color: var(--tf-bg);
+  background: var(--tf-red);
+  color: var(--tf-on-accent);
   font-size: 32px;
   font-weight: 900;
   display: flex;
@@ -541,7 +542,7 @@
 /* ── Menú de servicios (menú libre) ── */
 .tf-svc-cat { margin-top: 22px; }
 .tf-svc-cat-title {
-  color: var(--tf-gold);
+  color: var(--tf-red);
   font-size: 12px;
   font-weight: 700;
   letter-spacing: 1px;
@@ -560,10 +561,10 @@
   cursor: pointer;
   transition: all 0.15s;
 }
-.tf-svc-item:hover { border-color: rgba(232,200,102,.4); }
+.tf-svc-item:hover { border-color: rgba(177,26,45,.4); }
 .tf-svc-item:has(.tf-service-input:checked) {
-  border-color: var(--tf-gold);
-  background: rgba(232,200,102,.1);
+  border-color: var(--tf-red);
+  background: rgba(177,26,45,.1);
 }
 .tf-service-input {
   position: absolute;
@@ -582,19 +583,19 @@
   transition: all 0.15s;
 }
 .tf-service-input:checked + .tf-svc-check {
-  background: var(--tf-gold);
-  border-color: var(--tf-gold);
+  background: var(--tf-red);
+  border-color: var(--tf-red);
 }
 .tf-service-input:checked + .tf-svc-check::after {
   content: '✓';
-  color: var(--tf-bg);
+  color: var(--tf-on-accent);
   font-size: 13px;
   font-weight: 900;
 }
 .tf-svc-info { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .tf-svc-name { font-weight: 600; font-size: 14px; color: var(--tf-white); }
 .tf-svc-meta { font-size: 12px; color: var(--tf-muted); }
-.tf-svc-price { font-weight: 700; color: var(--tf-gold); font-size: 14px; white-space: nowrap; }
+.tf-svc-price { font-weight: 700; color: var(--tf-red); font-size: 14px; white-space: nowrap; }
 
 /* ── Precio orientativo (informativo) ── */
 .tf-estimate { display: flex; flex-direction: column; margin-right: auto; }
@@ -627,7 +628,7 @@
   line-height: 1;
   transition: all 0.15s;
 }
-.tf-cal-nav:hover:not(:disabled) { background: rgba(232,200,102,.15); border-color: rgba(232,200,102,.4); }
+.tf-cal-nav:hover:not(:disabled) { background: rgba(177,26,45,.15); border-color: rgba(177,26,45,.4); }
 .tf-cal-nav:disabled { opacity: .25; cursor: default; }
 .tf-cal-weekdays {
   display: grid;
@@ -654,8 +655,8 @@
   font-weight: 600;
   transition: all 0.15s;
 }
-.tf-cal-day:hover:not(.tf-cal-disabled) { background: rgba(232,200,102,.18); }
-.tf-cal-day.tf-cal-selected { background: var(--tf-gold); color: var(--tf-bg); }
+.tf-cal-day:hover:not(.tf-cal-disabled) { background: rgba(177,26,45,.18); }
+.tf-cal-day.tf-cal-selected { background: var(--tf-red); color: var(--tf-on-accent); }
 .tf-cal-disabled { opacity: .22; cursor: default; background: transparent; }
 .tf-cal-day.tf-cal-closed { text-decoration: line-through; }
 .tf-slots-panel { max-height: 380px; overflow-y: auto; }
@@ -681,13 +682,13 @@
 .tf-summary-title {
   font-size: 13px;
   font-weight: 700;
-  color: var(--tf-gold);
+  color: var(--tf-red);
   text-transform: uppercase;
   letter-spacing: 1px;
   margin: 0 0 12px;
 }
 .tf-summary-box .tf-summary-grid { margin-top: 0; }
-.tf-summary-total .tf-sum-value { color: var(--tf-gold); font-weight: 800; }
+.tf-summary-total .tf-sum-value { color: var(--tf-red); font-weight: 800; }
 
 /* ── Responsive ── */
 @media (max-width: 600px) {
