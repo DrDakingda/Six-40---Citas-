@@ -14,10 +14,9 @@
 /* ── Contenedor ── */
 .tf-wrap {
   background: var(--tf-bg);
-  min-height: 520px;
+  min-height: 100vh;          /* fullpage: ocupa el alto de la pantalla */
   position: relative;
   overflow: hidden;
-  border-radius: 16px;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   color: var(--tf-white);
 }
@@ -532,6 +531,164 @@
   margin: 0 0 32px;
 }
 
+/* ── Pasos anchos (servicios, calendario, datos) ── */
+.tf-step-inner--wide { max-width: 760px; }
+.tf-step { overflow-y: auto; }
+.tf-step[data-step="4"],
+.tf-step[data-step="5"],
+.tf-step[data-step="6"] { align-items: flex-start; }
+
+/* ── Menú de servicios (menú libre) ── */
+.tf-svc-cat { margin-top: 22px; }
+.tf-svc-cat-title {
+  color: var(--tf-gold);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  margin: 0 0 10px;
+}
+.tf-svc-list { display: flex; flex-direction: column; gap: 8px; }
+.tf-svc-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--tf-border);
+  border-radius: var(--tf-radius);
+  background: rgba(255,255,255,.04);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.tf-svc-item:hover { border-color: rgba(232,200,102,.4); }
+.tf-svc-item:has(.tf-service-input:checked) {
+  border-color: var(--tf-gold);
+  background: rgba(232,200,102,.1);
+}
+.tf-service-input {
+  position: absolute;
+  opacity: 0;
+  width: 0; height: 0;
+  pointer-events: none;
+}
+.tf-svc-check {
+  width: 22px; height: 22px;
+  border-radius: 6px;
+  border: 2px solid rgba(255,255,255,.25);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+}
+.tf-service-input:checked + .tf-svc-check {
+  background: var(--tf-gold);
+  border-color: var(--tf-gold);
+}
+.tf-service-input:checked + .tf-svc-check::after {
+  content: '✓';
+  color: var(--tf-bg);
+  font-size: 13px;
+  font-weight: 900;
+}
+.tf-svc-info { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.tf-svc-name { font-weight: 600; font-size: 14px; color: var(--tf-white); }
+.tf-svc-meta { font-size: 12px; color: var(--tf-muted); }
+.tf-svc-price { font-weight: 700; color: var(--tf-gold); font-size: 14px; white-space: nowrap; }
+
+/* ── Precio orientativo (informativo) ── */
+.tf-estimate { display: flex; flex-direction: column; margin-right: auto; }
+.tf-estimate-label { font-size: 11px; color: var(--tf-muted); text-transform: uppercase; letter-spacing: .5px; }
+.tf-estimate-value { font-size: 17px; font-weight: 800; color: var(--tf-white); }
+.tf-estimate-note { font-size: 11px; color: var(--tf-muted); }
+
+/* ── Calendario (fecha + hora) ── */
+.tf-cal-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 28px;
+  margin-top: 24px;
+}
+.tf-cal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+.tf-cal-title { font-weight: 700; text-transform: capitalize; font-size: 15px; }
+.tf-cal-nav {
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  border: 1px solid var(--tf-border);
+  background: rgba(255,255,255,.04);
+  color: var(--tf-white);
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+  transition: all 0.15s;
+}
+.tf-cal-nav:hover:not(:disabled) { background: rgba(232,200,102,.15); border-color: rgba(232,200,102,.4); }
+.tf-cal-nav:disabled { opacity: .25; cursor: default; }
+.tf-cal-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7,1fr);
+  gap: 4px;
+  margin-bottom: 6px;
+}
+.tf-cal-weekdays span { text-align: center; font-size: 11px; color: var(--tf-muted); }
+.tf-cal-grid { display: grid; grid-template-columns: repeat(7,1fr); gap: 4px; }
+.tf-cal-cell {
+  aspect-ratio: 1 / 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.tf-cal-day {
+  width: 100%; height: 100%;
+  border: none;
+  border-radius: 50%;
+  background: rgba(255,255,255,.05);
+  color: var(--tf-white);
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  transition: all 0.15s;
+}
+.tf-cal-day:hover:not(.tf-cal-disabled) { background: rgba(232,200,102,.18); }
+.tf-cal-day.tf-cal-selected { background: var(--tf-gold); color: var(--tf-bg); }
+.tf-cal-disabled { opacity: .22; cursor: default; background: transparent; }
+.tf-cal-day.tf-cal-closed { text-decoration: line-through; }
+.tf-slots-panel { max-height: 380px; overflow-y: auto; }
+.tf-slots-day { font-weight: 700; margin: 0 0 12px; text-transform: capitalize; font-size: 15px; color: var(--tf-white); }
+.tf-slots-panel .tf-slots-grid { grid-template-columns: repeat(3,1fr); margin-top: 0; }
+.tf-slots-panel .tf-muted,
+.tf-slots-panel .tf-no-slots { margin-top: 0; }
+
+/* ── Formulario de datos ── */
+.tf-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px 24px;
+  margin-top: 20px;
+}
+.tf-form-grid .tf-field:nth-child(1) { grid-column: 1 / -1; }
+.tf-field { display: flex; flex-direction: column; }
+.tf-label { font-size: 13px; color: var(--tf-muted); margin-bottom: 2px; }
+.tf-field .tf-text-input { margin-top: 4px; font-size: 18px; }
+
+/* ── Caja resumen (paso datos) ── */
+.tf-summary-box { margin-top: 26px; }
+.tf-summary-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--tf-gold);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin: 0 0 12px;
+}
+.tf-summary-box .tf-summary-grid { margin-top: 0; }
+.tf-summary-total .tf-sum-value { color: var(--tf-gold); font-weight: 800; }
+
 /* ── Responsive ── */
 @media (max-width: 600px) {
   .tf-wrap { border-radius: 0; min-height: 100dvh; }
@@ -540,4 +697,10 @@
   .tf-barber-cards { grid-template-columns: repeat(2,1fr); }
   .tf-slots-grid { grid-template-columns: repeat(4,1fr); }
   .tf-question { font-size: 22px; }
+  .tf-cal-layout { grid-template-columns: 1fr; }
+  .tf-form-grid { grid-template-columns: 1fr; }
+  .tf-form-grid .tf-field:nth-child(1) { grid-column: auto; }
+  .tf-slots-panel { max-height: none; }
+  .tf-slots-panel .tf-slots-grid { grid-template-columns: repeat(4,1fr); }
+  .tf-actions { flex-wrap: wrap; }
 }

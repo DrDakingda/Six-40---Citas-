@@ -13,6 +13,10 @@ function six40_render_booking_form(): string {
                  . '</div>';
         }
     }
+    // Encola CSS/JS justo cuando el formulario se renderiza (compatible con
+    // page builders como Avada, donde la autodetección por has_shortcode falla).
+    six40_enqueue_public_assets();
+
     ob_start();
     require SIX40_PLUGIN_DIR . 'public/booking-form.php';
     return ob_get_clean();

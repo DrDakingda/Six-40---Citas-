@@ -114,14 +114,21 @@ ON CONFLICT DO NOTHING;
 -- ============================================================
 CREATE TABLE IF NOT EXISTS public.services (
   id              BIGSERIAL PRIMARY KEY,
-  name            TEXT NOT NULL UNIQUE,
+  name            TEXT NOT NULL,
   duration        SMALLINT NOT NULL CHECK (duration > 0), -- minutos
-  type            TEXT NOT NULL CHECK (type IN ('base', 'additional')), -- base o adicional
+  type            TEXT NOT NULL CHECK (type IN ('base', 'additional')), -- compat (no se usa en menú libre)
+  category        TEXT,          -- 'corte' | 'barba' | 'depilacion' | 'tratamiento'
   location        TEXT CHECK (location IS NULL OR location IN ('malaga', 'torremolinos')), -- NULL = ambos
+  price           NUMERIC(6,2),  -- precio orientativo
+  price_from      BOOLEAN NOT NULL DEFAULT false, -- true = "desde X €"
   active          BOOLEAN NOT NULL DEFAULT true,
   display_order   SMALLINT DEFAULT 0,
   created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- Mismo nombre permitido en distintos locales (Corte de Málaga vs Torremolinos)
+CREATE UNIQUE INDEX IF NOT EXISTS uniq_service_name_location
+  ON public.services (name, COALESCE(location, ''));
 
 -- Índices
 CREATE INDEX IF NOT EXISTS idx_services_type   ON public.services (type);
@@ -131,22 +138,36 @@ CREATE INDEX IF NOT EXISTS idx_services_active ON public.services (active);
 ALTER TABLE public.services ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "svc_read" ON public.services FOR SELECT USING (active = true);
 
--- Datos iniciales
-INSERT INTO public.services (name, duration, type, location, display_order) VALUES
-  -- Servicios base
-  (1, 'Rapado', 20, 'base', NULL, 1),
-  (2, 'Barba', 20, 'base', NULL, 2),
-  (3, 'Rapado + Barba', 30, 'base', NULL, 3),
-  (4, 'Corte Niño', 30, 'base', NULL, 4),
-  (5, 'Corte', 30, 'base', NULL, 5),
-  (6, 'Corte + Barba', 40, 'base', NULL, 6),
-
-  -- Servicios adicionales (se suman)
-  (7, 'Mechas', 20, 'additional', NULL, 10),
-  (8, 'Iluminaciones', 20, 'additional', NULL, 11),
-  (9, 'Reducción de Canas', 20, 'additional', NULL, 12),
-  (10, 'Color en Barba', 20, 'additional', NULL, 13)
-ON CONFLICT (name) DO NOTHING;
+-- Datos iniciales POR LOCAL (precios orientativos)
+INSERT INTO public.services (id, name, duration, type, category, location, price, price_from, display_order) VALUES
+  -- ── MÁLAGA ──
+  (1,  'Corte',                     30, 'base',       'corte',       'malaga', 15.00, false, 1),
+  (2,  'Corte Niño',                30, 'base',       'corte',       'malaga', 12.50, false, 2),
+  (3,  'Rapado',                    20, 'base',       'corte',       'malaga', 10.00, false, 3),
+  (4,  'Arreglo de barba a máquina',15, 'base',       'barba',       'malaga',  8.00, false, 10),
+  (5,  'Arreglo de barba a navaja', 20, 'base',       'barba',       'malaga', 10.00, false, 11),
+  (6,  'Afeitado',                  30, 'base',       'barba',       'malaga', 12.00, false, 12),
+  (7,  'Depilación cejas',          10, 'additional', 'depilacion',  'malaga',  4.00, false, 20),
+  (8,  'Cejas + 1 zona',            15, 'additional', 'depilacion',  'malaga',  6.00, false, 21),
+  (9,  'Depilación completa',       20, 'additional', 'depilacion',  'malaga',  8.00, false, 22),
+  (10, 'Color barba',               20, 'additional', 'tratamiento', 'malaga',  8.00, false, 30),
+  (11, 'Reducción de canas',        30, 'additional', 'tratamiento', 'malaga', 12.00, false, 31),
+  (12, 'Color fantasía',            90, 'additional', 'tratamiento', 'malaga', 25.00, true,  32),
+  (13, 'Mechas',                    90, 'additional', 'tratamiento', 'malaga', 25.00, true,  33),
+  (14, 'Iluminaciones',             30, 'additional', 'tratamiento', 'malaga', 12.00, false, 34),
+  -- ── TORREMOLINOS ──
+  (20, 'Corte',                     30, 'base',       'corte',       'torremolinos', 17.00, false, 1),
+  (21, 'Corte Niño',                30, 'base',       'corte',       'torremolinos', 15.00, false, 2),
+  (22, 'Rapado',                    20, 'base',       'corte',       'torremolinos', 13.00, false, 3),
+  (23, 'Arreglo de barba a máquina',15, 'base',       'barba',       'torremolinos',  8.00, false, 10),
+  (24, 'Arreglo de barba a navaja', 20, 'base',       'barba',       'torremolinos', 12.00, false, 11),
+  (25, 'Afeitado + Ritual',         30, 'base',       'barba',       'torremolinos', 14.00, false, 12),
+  (26, 'Color barba',               20, 'additional', 'tratamiento', 'torremolinos',  8.00, false, 30),
+  (27, 'Reducción de canas',        30, 'additional', 'tratamiento', 'torremolinos', 12.00, false, 31),
+  (28, 'Color fantasía',            90, 'additional', 'tratamiento', 'torremolinos', 25.00, true,  32),
+  (29, 'Mechas',                    90, 'additional', 'tratamiento', 'torremolinos', 25.00, true,  33),
+  (30, 'Iluminaciones',             30, 'additional', 'tratamiento', 'torremolinos', 12.00, false, 34)
+ON CONFLICT DO NOTHING;
 
 -- ============================================================
 -- 4. TABLA: Citas (actualizada)

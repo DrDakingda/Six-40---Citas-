@@ -102,6 +102,19 @@ class Six40_Admin_Panel {
             $cfg[ $f ] = sanitize_text_field( $_POST[ $f ] ?? '' );
         }
         update_option( 'six40_settings', $cfg );
+
+        // Festivos: una fecha por línea (AAAA-MM-DD). Guardamos solo válidas, únicas y ordenadas.
+        $raw = (string) ( $_POST['holidays'] ?? '' );
+        $holidays = [];
+        foreach ( preg_split( '/\r\n|\r|\n/', $raw ) as $line ) {
+            $line = trim( $line );
+            if ( preg_match( '/^\d{4}-\d{2}-\d{2}$/', $line ) ) {
+                $holidays[ $line ] = true;
+            }
+        }
+        $holidays = array_keys( $holidays );
+        sort( $holidays );
+        update_option( 'six40_holidays', $holidays );
         wp_redirect( admin_url( 'admin.php?page=six40-settings&saved=1' ) );
         exit;
     }
@@ -202,17 +215,17 @@ class Six40_Admin_Panel {
         $appointments = $api->get_appointments( $filters );
         if ( is_wp_error( $appointments ) ) wp_send_json_error( $appointments->get_error_message() );
 
-        $svc_labels    = [ 'barba' => 'Barba', 'corte' => 'Corte', 'corte_barba' => 'Corte + Barba' ];
         $status_colors = [ 'confirmed'=>'#e8c866','completed'=>'#4caf50','cancelled'=>'#e53e3e','no_show'=>'#a0a0a0' ];
 
         $events = [];
         foreach ( $appointments as $a ) {
             $status   = $a['status'] ?? 'confirmed';
-            $service  = $a['service'] ?? '';
+            $service  = $a['services_label'] ?? '';
+            $title    = ( $service !== '' ? $service . ' — ' : '' ) . ( $a['customer_name'] ?? '' );
             $events[] = [
                 'id'              => $a['id'] ?? '',
-                'title'           => ( $svc_labels[$service] ?? $service ) . ' — ' . ( $a['customer_name'] ?? '' ),
-                'start'           => ( $a['date'] ?? '' ) . 'T' . substr( $a['time'] ?? '', 0, 5 ),
+                'title'           => $title,
+                'start'           => ( $a['date'] ?? '' ) . 'T' . substr( $a['start_time'] ?? '', 0, 5 ),
                 'end'             => ( $a['date'] ?? '' ) . 'T' . substr( $a['end_time'] ?? '', 0, 5 ),
                 'backgroundColor' => $status_colors[$status] ?? '#e8c866',
                 'borderColor'     => $status_colors[$status] ?? '#e8c866',

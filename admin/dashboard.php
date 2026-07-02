@@ -94,7 +94,7 @@ $page = sanitize_text_field( $_GET['page'] ?? 'six40-dashboard' );
               <span class="six40-customer-name"><?= esc_html($appt['customer_name']??'—') ?></span>
               <small class="six40-customer-email"><?= esc_html($appt['customer_email']??'') ?></small>
             </td>
-            <td>—</td>
+            <td><?= ($appt['services_label']??'') !== '' ? esc_html($appt['services_label']) : '—' ?></td>
             <td><?= $appt['location']==='malaga'?'Málaga':'Torremolinos' ?></td>
             <td><?= esc_html($barbers_map[(int)($appt['barber_id']??0)]??'—') ?></td>
             <td><span class="six40-status six40-status--<?= esc_attr($status) ?>"><?= esc_html($statusLabels[$status]??ucfirst($status)) ?></span></td>
@@ -176,7 +176,7 @@ $page = sanitize_text_field( $_GET['page'] ?? 'six40-dashboard' );
               <?= esc_html($appt['customer_name']??'—') ?>
               <small><?= esc_html($appt['customer_email']??'') ?></small>
             </td>
-            <td>—</td>
+            <td><?= ($appt['services_label']??'') !== '' ? esc_html($appt['services_label']) : '—' ?></td>
             <td><?= $appt['location']==='malaga'?'Málaga':'Torremolinos' ?></td>
             <td><?= esc_html($barbers_map[(int)($appt['barber_id']??0)]??'—') ?></td>
             <td><span class="six40-status six40-status--<?= esc_attr($status) ?>"><?= esc_html($statusLabels[$status]??ucfirst($status)) ?></span></td>
@@ -324,6 +324,19 @@ $page = sanitize_text_field( $_GET['page'] ?? 'six40-dashboard' );
           <tr><th><label for="email_from">Email remitente</label></th>
             <td><input type="email" id="email_from" name="email_from" class="regular-text"
                 value="<?= esc_attr($cfg_data['email_from']??'') ?>" placeholder="noreply@six40.katibu.es"></td></tr>
+        </table>
+      </div>
+
+      <div class="six40-panel">
+        <div class="six40-panel-header"><h2>🚫 Días cerrados (festivos)</h2></div>
+        <table class="form-table">
+          <tr><th><label for="holidays">Festivos</label></th>
+            <td>
+              <?php $holidays = (array) get_option('six40_holidays', []); ?>
+              <textarea id="holidays" name="holidays" rows="6" class="large-text code"
+                        placeholder="2026-01-01&#10;2026-08-15&#10;2026-12-25"><?= esc_textarea( implode( "\n", $holidays ) ) ?></textarea>
+              <p class="description">Una fecha por línea, formato <code>AAAA-MM-DD</code>. Esos días no se podrán reservar (los domingos ya se cierran automáticamente).</p>
+            </td></tr>
         </table>
       </div>
 
