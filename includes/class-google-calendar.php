@@ -65,8 +65,10 @@ class Six40_Google_Calendar {
         $service_label = ! empty( $service_names ) ? implode( ' + ', array_filter( $service_names ) ) : '—';
 
         $date       = $appointment['date'] ?? '';
-        $time_start = $appointment['start_time'] ?? '';
-        $time_end   = $appointment['end_time'] ?? '';
+        // Supabase devuelve TIME como 'HH:MM:SS'; normalizamos a 'HH:MM' para
+        // construir un dateTime RFC3339 válido ("...THH:MM:00").
+        $time_start = substr( (string) ( $appointment['start_time'] ?? '' ), 0, 5 );
+        $time_end   = substr( (string) ( $appointment['end_time'] ?? '' ), 0, 5 );
 
         if ( ! $date || ! $time_start || ! $time_end ) {
             return new WP_Error( 'invalid_data', 'Appointment data incomplete.' );

@@ -3,7 +3,7 @@
  * Plugin Name: Six40 Booking System
  * Plugin URI:  https://six40.katibu.es/
  * Description: Sistema de citas para Sixcuarenta 640 Barbería (Málaga y Torremolinos).
- * Version:     1.4.3
+ * Version:     1.4.4
  * Author:      Katibu
  * Author URI:  https://katibu.es/
  * License:     GPL-2.0+
@@ -13,7 +13,7 @@
 defined( 'ABSPATH' ) || exit;
 
 // ── Constants ──────────────────────────────────────────────────────────────────
-define( 'SIX40_VERSION',    '1.4.3' );
+define( 'SIX40_VERSION',    '1.4.4' );
 define( 'SIX40_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'SIX40_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 define( 'SIX40_PLUGIN_FILE', __FILE__ );
@@ -225,9 +225,15 @@ function six40_ajax_submit_booking() {
         wp_send_json_error( [ 'message' => $result->get_error_message() ] );
     }
 
-    // Fire-and-forget integrations.
-    ( new Six40_Google_Calendar() )->create_event( $result );
-    ( new Six40_Email() )->send_confirmation( $result );
+    // Fire-and-forget integrations (los errores no bloquean la cita, pero se registran).
+    $gc = ( new Six40_Google_Calendar() )->create_event( $result );
+    if ( is_wp_error( $gc ) ) {
+        error_log( 'Six40 Google Calendar: ' . $gc->get_error_message() );
+    }
+    $em = ( new Six40_Email() )->send_confirmation( $result );
+    if ( is_wp_error( $em ) ) {
+        error_log( 'Six40 Email: ' . $em->get_error_message() );
+    }
 
     wp_send_json_success( [
         'message'        => __( '¡Cita confirmada! Recibirás un correo de confirmación.', 'six40-booking' ),
