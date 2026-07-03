@@ -60,6 +60,17 @@
 .six40-admin .form-table td{padding:12px 24px 12px 0}
 .six40-admin .form-table{padding:0 0 8px}
 .six40-admin .regular-text{width:360px;max-width:100%}
+.six40-vac{margin-top:12px;border-top:1px solid var(--six40-border);padding-top:10px;text-align:left}
+.six40-vac-title{font-size:11px;font-weight:700;color:var(--six40-muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px}
+.six40-vac-list{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px}
+.six40-vac-empty{font-size:11px;color:var(--six40-muted)}
+.six40-vac-item{display:inline-flex;align-items:center;gap:4px;background:var(--six40-gray);border:1px solid var(--six40-border);border-radius:100px;padding:2px 6px 2px 10px;font-size:11px}
+.six40-vac-del{border:none;background:none;color:var(--six40-muted);cursor:pointer;font-size:12px;line-height:1;padding:0 2px}
+.six40-vac-del:hover{color:var(--six40-red)}
+.six40-vac-add{display:flex;flex-wrap:wrap;gap:5px;align-items:center}
+.six40-vac-add input[type="date"]{border:1px solid var(--six40-border);border-radius:4px;padding:3px 6px;font-size:11px;flex:1 1 90px;min-width:0}
+.six40-vac-add-btn{border:1px solid var(--six40-accent);background:var(--six40-accent);color:#fff;border-radius:4px;padding:4px 12px;font-size:11px;cursor:pointer;white-space:nowrap}
+.six40-vac-add-btn:hover{background:#8e1523}
 #six40-calendar{padding:20px 24px;min-height:500px}
 .six40-empty{padding:48px;text-align:center;color:var(--six40-muted);font-size:14px}
 .six40-admin .notice{margin:0 0 20px}

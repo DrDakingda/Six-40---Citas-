@@ -19,6 +19,8 @@ class Six40_Admin_Panel {
         add_action( 'wp_ajax_six40_get_appointments_json', [ $this, 'ajax_get_appointments_json' ] );
         add_action( 'wp_ajax_six40_get_days_off',          [ $this, 'ajax_get_days_off' ] );
         add_action( 'wp_ajax_six40_toggle_day_off',        [ $this, 'ajax_toggle_day_off' ] );
+        add_action( 'wp_ajax_six40_add_vacation',          [ $this, 'ajax_add_vacation' ] );
+        add_action( 'wp_ajax_six40_delete_vacation',       [ $this, 'ajax_delete_vacation' ] );
         add_action( 'admin_init',            [ $this, 'handle_oauth_callback' ] );
     }
 
@@ -215,6 +217,57 @@ class Six40_Admin_Panel {
 
         if ( is_wp_error( $result ) ) wp_send_json_error( $result->get_error_message() );
         wp_send_json_success( [ 'date' => $date ] );
+    }
+
+    // ── Vacaciones programadas (opción six40_barber_vacations) ────────────────
+
+    public function ajax_add_vacation() {
+        check_ajax_referer( 'six40_admin_nonce', 'nonce' );
+        if ( ! current_user_can( 'manage_options' ) ) wp_send_json_error( 'Unauthorized' );
+
+        $barber_id = intval( $_POST['barber_id'] ?? 0 );
+        $start     = sanitize_text_field( $_POST['start'] ?? '' );
+        $end       = sanitize_text_field( $_POST['end'] ?? '' );
+
+        $re = '/^\d{4}-\d{2}-\d{2}$/';
+        if ( ! $barber_id || ! preg_match( $re, $start ) || ! preg_match( $re, $end ) ) {
+            wp_send_json_error( 'Fechas inválidas.' );
+        }
+        if ( $end < $start ) {
+            wp_send_json_error( 'La fecha "hasta" no puede ser anterior a "desde".' );
+        }
+
+        $vac = (array) get_option( 'six40_barber_vacations', [] );
+        if ( ! isset( $vac[ $barber_id ] ) || ! is_array( $vac[ $barber_id ] ) ) {
+            $vac[ $barber_id ] = [];
+        }
+        $vac[ $barber_id ][] = [ 'start' => $start, 'end' => $end ];
+        // Ordenar por fecha de inicio.
+        usort( $vac[ $barber_id ], function ( $a, $b ) {
+            return strcmp( $a['start'] ?? '', $b['start'] ?? '' );
+        } );
+        update_option( 'six40_barber_vacations', $vac );
+
+        wp_send_json_success( [ 'barber_id' => $barber_id ] );
+    }
+
+    public function ajax_delete_vacation() {
+        check_ajax_referer( 'six40_admin_nonce', 'nonce' );
+        if ( ! current_user_can( 'manage_options' ) ) wp_send_json_error( 'Unauthorized' );
+
+        $barber_id = intval( $_POST['barber_id'] ?? 0 );
+        $index     = intval( $_POST['index'] ?? -1 );
+
+        $vac = (array) get_option( 'six40_barber_vacations', [] );
+        if ( isset( $vac[ $barber_id ][ $index ] ) ) {
+            array_splice( $vac[ $barber_id ], $index, 1 );
+            if ( empty( $vac[ $barber_id ] ) ) {
+                unset( $vac[ $barber_id ] );
+            }
+            update_option( 'six40_barber_vacations', $vac );
+        }
+
+        wp_send_json_success( [ 'barber_id' => $barber_id ] );
     }
 
     public function ajax_get_appointments_json() {

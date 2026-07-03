@@ -204,9 +204,10 @@ $page = sanitize_text_field( $_GET['page'] ?? 'six40-dashboard' );
       $status_labels = ['available'=>'Disponible','vacation'=>'Vacaciones','sick'=>'Baja'];
       $btn_labels    = ['available'=>'✅ Disponible','vacation'=>'🏖️ Vacaciones','sick'=>'🤒 Baja'];
       $locations     = ['malaga'=>'Málaga','torremolinos'=>'Torremolinos'];
+      $vacations_all = (array) get_option('six40_barber_vacations', []);
     ?>
     <h1 class="six40-page-title">Gestión de Barberos</h1>
-    <p class="six40-page-subtitle">Cambios se aplican en tiempo real — los clientes no podrán reservar con barberos en Vacaciones, Baja o con día libre marcado.</p>
+    <p class="six40-page-subtitle">Los cambios se aplican al instante. Los clientes no podrán reservar con un barbero en Vacaciones, Baja, ni en las fechas de vacaciones programadas.</p>
     <?php foreach ( $locations as $loc_key => $loc_name ) : ?>
     <div class="six40-panel">
       <div class="six40-panel-header"><h2>📍 <?= esc_html($loc_name) ?></h2></div>
@@ -230,6 +231,27 @@ $page = sanitize_text_field( $_GET['page'] ?? 'six40-dashboard' );
               <?= $v ?>
             </button>
             <?php endforeach; ?>
+          </div>
+          <div class="six40-vac">
+            <div class="six40-vac-title">🏖️ Vacaciones programadas</div>
+            <div class="six40-vac-list">
+              <?php $branges = $vacations_all[$b['id']] ?? []; ?>
+              <?php if (empty($branges)): ?>
+                <span class="six40-vac-empty">Ninguna</span>
+              <?php else: foreach ($branges as $i=>$r):
+                $fs = date_i18n('d/m/Y', strtotime($r['start']??''));
+                $fe = date_i18n('d/m/Y', strtotime($r['end']??''));
+              ?>
+                <span class="six40-vac-item"><?= esc_html("$fs → $fe") ?>
+                  <button class="six40-vac-del" data-id="<?= esc_attr($b['id']) ?>" data-index="<?= (int)$i ?>" title="Eliminar">✕</button>
+                </span>
+              <?php endforeach; endif; ?>
+            </div>
+            <div class="six40-vac-add">
+              <input type="date" class="six40-vac-from" aria-label="Desde">
+              <input type="date" class="six40-vac-to" aria-label="Hasta">
+              <button class="six40-vac-add-btn" data-id="<?= esc_attr($b['id']) ?>">Añadir</button>
+            </div>
           </div>
         </div>
         <?php endforeach; ?>

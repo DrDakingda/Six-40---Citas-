@@ -46,6 +46,29 @@
     }).fail(function(){ toast('Error de conexión.','error'); $btn.prop('disabled',false); });
   });
 
+  // Vacaciones programadas: añadir
+  $(document).on('click', '.six40-vac-add-btn', function(){
+    var $btn = $(this), bid = $btn.data('id'), $vac = $btn.closest('.six40-vac');
+    var from = $vac.find('.six40-vac-from').val(), to = $vac.find('.six40-vac-to').val();
+    if (!from || !to) { toast('Elige fecha desde y hasta.','error'); return; }
+    if (to < from)    { toast('"Hasta" no puede ser anterior a "desde".','error'); return; }
+    $btn.prop('disabled',true).text('…');
+    $.post(six40Admin.ajaxUrl, { action:'six40_add_vacation', nonce:six40Admin.nonce, barber_id:bid, start:from, end:to }, function(res){
+      if (res.success) { toast('Vacaciones añadidas.','success'); location.reload(); }
+      else { toast('Error: '+(res.data||'No se pudo añadir.'),'error'); $btn.prop('disabled',false).text('Añadir'); }
+    }).fail(function(){ toast('Error de conexión.','error'); $btn.prop('disabled',false).text('Añadir'); });
+  });
+
+  // Vacaciones programadas: eliminar
+  $(document).on('click', '.six40-vac-del', function(){
+    var $btn = $(this), bid = $btn.data('id'), index = $btn.data('index');
+    $btn.prop('disabled',true);
+    $.post(six40Admin.ajaxUrl, { action:'six40_delete_vacation', nonce:six40Admin.nonce, barber_id:bid, index:index }, function(res){
+      if (res.success) { toast('Vacaciones eliminadas.','success'); location.reload(); }
+      else { toast('Error: '+(res.data||'No se pudo eliminar.'),'error'); $btn.prop('disabled',false); }
+    }).fail(function(){ toast('Error de conexión.','error'); $btn.prop('disabled',false); });
+  });
+
   // FullCalendar
   var calEl = document.getElementById('six40-calendar');
   if (!calEl) return;

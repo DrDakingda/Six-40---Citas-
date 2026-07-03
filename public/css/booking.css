@@ -360,6 +360,7 @@
 }
 
 .tf-btn-ok:hover { opacity: 0.85; }
+.tf-btn-home { text-decoration: none; }
 
 .tf-check {
   font-size: 14px;

@@ -190,7 +190,7 @@ $max_day = wp_date( 'Y-m-d', strtotime( '+60 days' ) );
       <div class="tf-success-check">✓</div>
       <h2>¡Cita confirmada!</h2>
       <p>Revisa tu bandeja de entrada — te enviamos todos los detalles.</p>
-      <button type="button" class="tf-btn-ok" id="six40-new-booking">Reservar otra cita</button>
+      <a href="<?= esc_url( home_url( '/' ) ) ?>" class="tf-btn-ok tf-btn-home">Volver a la home</a>
     </div>
   </div>
 

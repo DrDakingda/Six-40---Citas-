@@ -338,6 +338,11 @@ class Six40_Booking_API {
 			}
 		}
 
+		// El barbero no puede tener día libre o vacaciones en esa fecha.
+		if ( in_array( (int) $barber_id, $this->get_barber_ids_off_on_date( $date ), true ) ) {
+			return new WP_Error( 'barber_off', 'El barbero no está disponible ese día.' );
+		}
+
 		// Create appointment
 		$appt_data = [
 			'location'        => $location,
@@ -611,16 +616,31 @@ class Six40_Booking_API {
 	 * @return array Barber IDs
 	 */
 	private function get_barber_ids_off_on_date( $date ) {
+		$ids = [];
+
+		// Días libres puntuales (tabla barber_days_off).
 		$result = $this->supabase_request( 'GET', 'barber_days_off', [], [
 			'date'   => 'eq.' . $date,
 			'select' => 'barber_id',
 		] );
-
-		if ( is_wp_error( $result ) ) {
-			return [];
+		if ( ! is_wp_error( $result ) ) {
+			$ids = array_map( 'intval', array_column( (array) $result, 'barber_id' ) );
 		}
 
-		return array_map( 'intval', array_column( (array) $result, 'barber_id' ) );
+		// Vacaciones programadas (opción WP six40_barber_vacations): rangos de fecha.
+		$vac = (array) get_option( 'six40_barber_vacations', [] );
+		foreach ( $vac as $bid => $ranges ) {
+			foreach ( (array) $ranges as $r ) {
+				$s = $r['start'] ?? '';
+				$e = $r['end'] ?? '';
+				if ( $s && $e && $date >= $s && $date <= $e ) {
+					$ids[] = (int) $bid;
+					break;
+				}
+			}
+		}
+
+		return array_values( array_unique( $ids ) );
 	}
 
 	/**
