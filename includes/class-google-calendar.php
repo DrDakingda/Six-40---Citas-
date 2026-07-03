@@ -31,15 +31,20 @@ class Six40_Google_Calendar {
 
     /**
      * Creates a Calendar event for a confirmed appointment.
-     * Prefiere el calendario del barbero; si no, el del local.
+     * Se crea en el calendario del barbero Y en el del local (los que estén
+     * configurados): agenda individual por barbero + vista conjunta por barbería.
      */
     public function create_event( $appointment ) {
-        $barber_id   = (int) ( $appointment['barber_id'] ?? 0 );
-        $calendar_id = $this->barber_calendar_id( $barber_id );
-        if ( ! $calendar_id ) {
-            $calendar_id = $this->calendar_id( $appointment['location'] ?? '' );
-        }
-        if ( ! $calendar_id ) {
+        $barber_id = (int) ( $appointment['barber_id'] ?? 0 );
+
+        $targets = [];
+        $bcal = $this->barber_calendar_id( $barber_id );
+        if ( $bcal ) { $targets[] = $bcal; }
+        $lcal = $this->calendar_id( $appointment['location'] ?? '' );
+        if ( $lcal ) { $targets[] = $lcal; }
+        $targets = array_values( array_unique( array_filter( $targets ) ) );
+
+        if ( empty( $targets ) ) {
             return new WP_Error( 'no_calendar', 'Google Calendar ID not configured.' );
         }
 
@@ -91,26 +96,37 @@ class Six40_Google_Calendar {
             ],
         ];
 
-        $response = wp_remote_post(
-            'https://www.googleapis.com/calendar/v3/calendars/' . rawurlencode( $calendar_id ) . '/events',
-            [
-                'headers' => [
-                    'Authorization' => 'Bearer ' . $token,
-                    'Content-Type'  => 'application/json',
-                ],
-                'body'    => wp_json_encode( $event ),
-                'timeout' => 15,
-            ]
-        );
+        $ok         = false;
+        $last_error = null;
+        foreach ( $targets as $cid ) {
+            $response = wp_remote_post(
+                'https://www.googleapis.com/calendar/v3/calendars/' . rawurlencode( $cid ) . '/events',
+                [
+                    'headers' => [
+                        'Authorization' => 'Bearer ' . $token,
+                        'Content-Type'  => 'application/json',
+                    ],
+                    'body'    => wp_json_encode( $event ),
+                    'timeout' => 15,
+                ]
+            );
 
-        if ( is_wp_error( $response ) ) return $response;
-
-        $code = wp_remote_retrieve_response_code( $response );
-        if ( $code >= 400 ) {
-            $body = json_decode( wp_remote_retrieve_body( $response ), true );
-            return new WP_Error( 'calendar_error', $body['error']['message'] ?? "HTTP $code" );
+            if ( is_wp_error( $response ) ) {
+                $last_error = $response;
+                continue;
+            }
+            $code = wp_remote_retrieve_response_code( $response );
+            if ( $code >= 400 ) {
+                $body = json_decode( wp_remote_retrieve_body( $response ), true );
+                $last_error = new WP_Error( 'calendar_error', $body['error']['message'] ?? "HTTP $code" );
+                continue;
+            }
+            $ok = true;
         }
 
+        if ( ! $ok && $last_error ) {
+            return $last_error;
+        }
         return true;
     }
 
