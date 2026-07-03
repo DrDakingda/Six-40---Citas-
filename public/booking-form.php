@@ -16,7 +16,7 @@ $max_day = wp_date( 'Y-m-d', strtotime( '+60 days' ) );
     <div class="tf-step active" data-step="1">
       <div class="tf-step-inner">
         <p class="tf-step-num">01 <span class="tf-arrow">→</span></p>
-        <h2 class="tf-question">¿Dónde quieres tu cita?</h2>
+        <h2 class="tf-question">¿DÓNDE QUIERES TU CITA?</h2>
         <div class="tf-cards tf-cards--2">
           <button type="button" class="tf-card" data-field="location" data-value="malaga">
             <span class="tf-card-letter">A</span>
@@ -42,7 +42,7 @@ $max_day = wp_date( 'Y-m-d', strtotime( '+60 days' ) );
     <div class="tf-step" data-step="2">
       <div class="tf-step-inner">
         <p class="tf-step-num">02 <span class="tf-arrow">→</span></p>
-        <h2 class="tf-question">¿Cómo prefieres reservar?</h2>
+        <h2 class="tf-question">¿CÓMO PREFIERES RESERVAR?</h2>
         <div class="tf-cards tf-cards--2">
           <button type="button" class="tf-card" data-field="booking_mode" data-value="auto">
             <span class="tf-card-letter">A</span>
