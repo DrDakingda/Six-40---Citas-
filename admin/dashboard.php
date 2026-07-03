@@ -312,6 +312,28 @@ $page = sanitize_text_field( $_GET['page'] ?? 'six40-dashboard' );
       </div>
 
       <div class="six40-panel">
+        <div class="six40-panel-header"><h2>💈 Calendarios por barbero</h2></div>
+        <table class="form-table">
+          <?php
+            $bc_map     = (array) get_option('six40_barber_calendars', []);
+            $bc_api     = new Six40_Booking_API();
+            $bc_barbers = $bc_api->get_barbers();
+            if (is_wp_error($bc_barbers)) $bc_barbers = [];
+            $bc_loc = ['malaga'=>'Málaga','torremolinos'=>'Torremolinos'];
+            foreach ($bc_barbers as $bb):
+              $bid = (int)($bb['id'] ?? 0);
+          ?>
+          <tr>
+            <th><label for="bc_<?= $bid ?>"><?= esc_html($bb['name'] ?? ('#'.$bid)) ?>
+              <small style="color:#888;">· <?= esc_html($bc_loc[$bb['location']??'']??'') ?></small></label></th>
+            <td><input type="text" id="bc_<?= $bid ?>" name="barber_calendar[<?= $bid ?>]" class="regular-text"
+                value="<?= esc_attr($bc_map[$bid] ?? '') ?>" placeholder="xxxx@group.calendar.google.com"></td></tr>
+          <?php endforeach; ?>
+        </table>
+        <p class="description" style="padding:0 12px 12px;">ID del Google Calendar de cada barbero. Con esto, el sistema lee su disponibilidad (no ofrece horas ya ocupadas en su agenda) y crea las citas en su propio calendario.</p>
+      </div>
+
+      <div class="six40-panel">
         <div class="six40-panel-header"><h2>📧 Email (Resend)</h2></div>
         <table class="form-table">
           <tr><th><label for="resend_api_key">API Key</label></th>

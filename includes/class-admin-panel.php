@@ -115,6 +115,20 @@ class Six40_Admin_Panel {
         $holidays = array_keys( $holidays );
         sort( $holidays );
         update_option( 'six40_holidays', $holidays );
+
+        // Calendarios por barbero: [barber_id => calendar_id].
+        $barber_cals = [];
+        if ( isset( $_POST['barber_calendar'] ) && is_array( $_POST['barber_calendar'] ) ) {
+            foreach ( $_POST['barber_calendar'] as $bid => $cid ) {
+                $bid = intval( $bid );
+                $cid = sanitize_text_field( $cid );
+                if ( $bid && $cid !== '' ) {
+                    $barber_cals[ $bid ] = $cid;
+                }
+            }
+        }
+        update_option( 'six40_barber_calendars', $barber_cals );
+
         wp_redirect( admin_url( 'admin.php?page=six40-settings&saved=1' ) );
         exit;
     }

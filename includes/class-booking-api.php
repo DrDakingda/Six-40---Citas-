@@ -197,6 +197,7 @@ class Six40_Booking_API {
 		}
 
 		$occupied = $this->build_occupied_map( $appointments ?? [] );
+		$this->merge_google_busy( $occupied, $barbers, $date );
 		$available_slots = [];
 
 		// For each barber, try to find free slots
@@ -693,6 +694,71 @@ class Six40_Booking_API {
 	}
 
 	/**
+	 * Fusiona en el mapa de ocupación los eventos "busy" del Google Calendar de
+	 * cada barbero (si están configurados y hay conexión con Google). Fail-safe:
+	 * si no hay calendarios o Google no responde, no cambia nada.
+	 *
+	 * @param array  &$occupied  Mapa [barber_id][H:i] => true (por referencia)
+	 * @param array   $barbers   Barberos considerados
+	 * @param string  $date      'YYYY-MM-DD'
+	 */
+	private function merge_google_busy( &$occupied, $barbers, $date ) {
+		$map = (array) get_option( 'six40_barber_calendars', [] );
+		if ( empty( $map ) ) {
+			return;
+		}
+
+		$calendar_ids  = [];
+		$cal_to_barber = [];
+		foreach ( (array) $barbers as $b ) {
+			$bid = (int) ( $b['id'] ?? 0 );
+			$cid = trim( (string) ( $map[ $bid ] ?? '' ) );
+			if ( $bid && $cid !== '' ) {
+				$calendar_ids[]        = $cid;
+				$cal_to_barber[ $cid ] = $bid;
+			}
+		}
+		if ( empty( $calendar_ids ) ) {
+			return;
+		}
+
+		$busy = ( new Six40_Google_Calendar() )->get_busy( $calendar_ids, $date );
+		if ( ! is_array( $busy ) || empty( $busy ) ) {
+			return;
+		}
+
+		foreach ( $busy as $cid => $intervals ) {
+			$bid = $cal_to_barber[ $cid ] ?? 0;
+			if ( ! $bid ) {
+				continue;
+			}
+			foreach ( (array) $intervals as $iv ) {
+				$this->mark_busy_slots( $occupied, $bid, $iv[0] ?? '', $iv[1] ?? '' );
+			}
+		}
+	}
+
+	/**
+	 * Marca como ocupados los slots de 30 min que se solapan con un intervalo.
+	 */
+	private function mark_busy_slots( &$occupied, $bid, $start, $end ) {
+		$dt     = \DateTime::createFromFormat( 'H:i', substr( (string) $start, 0, 5 ) );
+		$end_dt = \DateTime::createFromFormat( 'H:i', substr( (string) $end, 0, 5 ) );
+		if ( ! $dt || ! $end_dt || $dt >= $end_dt ) {
+			return;
+		}
+		// Alinear el inicio al slot de 30 min inferior.
+		$mins = (int) $dt->format( 'i' ) % self::SLOT_MINS;
+		if ( $mins ) {
+			$dt->modify( '-' . $mins . ' minutes' );
+		}
+		while ( $dt < $end_dt ) {
+			$occupied[ $bid ][ $dt->format( 'H:i' ) ] = true;
+			$dt->modify( '+' . self::SLOT_MINS . ' minutes' );
+		}
+	}
+
+	/**
 	 * Find an available barber for a time slot.
 	 *
 	 * @param string $location
@@ -734,6 +800,7 @@ class Six40_Booking_API {
 		}
 
 		$occupied = $this->build_occupied_map( $appointments ?? [] );
+		$this->merge_google_busy( $occupied, $barbers, $date );
 
 		// Try each barber
 		foreach ( $barbers as $barber ) {

@@ -19,10 +19,26 @@ class Six40_Google_Calendar {
     }
 
     /**
+     * ID del Google Calendar de un barbero concreto (option six40_barber_calendars).
+     *
+     * @param int $barber_id
+     * @return string  '' si no está configurado
+     */
+    public function barber_calendar_id( $barber_id ) {
+        $map = (array) get_option( 'six40_barber_calendars', [] );
+        return trim( (string) ( $map[ (int) $barber_id ] ?? '' ) );
+    }
+
+    /**
      * Creates a Calendar event for a confirmed appointment.
+     * Prefiere el calendario del barbero; si no, el del local.
      */
     public function create_event( $appointment ) {
-        $calendar_id = $this->calendar_id( $appointment['location'] ?? '' );
+        $barber_id   = (int) ( $appointment['barber_id'] ?? 0 );
+        $calendar_id = $this->barber_calendar_id( $barber_id );
+        if ( ! $calendar_id ) {
+            $calendar_id = $this->calendar_id( $appointment['location'] ?? '' );
+        }
         if ( ! $calendar_id ) {
             return new WP_Error( 'no_calendar', 'Google Calendar ID not configured.' );
         }
@@ -96,6 +112,72 @@ class Six40_Google_Calendar {
         }
 
         return true;
+    }
+
+    /**
+     * Devuelve los intervalos ocupados (busy) de varios calendarios para un día,
+     * vía la API freeBusy de Google. Horas en zona Europe/Madrid.
+     *
+     * @param array  $calendar_ids  IDs de calendario
+     * @param string $date          'YYYY-MM-DD'
+     * @return array  [ calendar_id => [ [ 'HH:MM', 'HH:MM' ], ... ] ]  (vacío si no conectado o error)
+     */
+    public function get_busy( $calendar_ids, $date ) {
+        $calendar_ids = array_values( array_filter( array_unique( (array) $calendar_ids ) ) );
+        if ( empty( $calendar_ids ) || ! preg_match( '/^\d{4}-\d{2}-\d{2}$/', (string) $date ) ) {
+            return [];
+        }
+
+        // Si no hay conexión con Google, no bloqueamos nada (fail-safe).
+        $token = $this->get_access_token();
+        if ( is_wp_error( $token ) ) {
+            return [];
+        }
+
+        $tz = new \DateTimeZone( 'Europe/Madrid' );
+        try {
+            $min = new \DateTime( $date . ' 00:00:00', $tz );
+            $max = new \DateTime( $date . ' 23:59:59', $tz );
+        } catch ( \Exception $e ) {
+            return [];
+        }
+
+        $body = [
+            'timeMin'  => $min->format( \DateTime::RFC3339 ),
+            'timeMax'  => $max->format( \DateTime::RFC3339 ),
+            'timeZone' => 'Europe/Madrid',
+            'items'    => array_map( function ( $id ) { return [ 'id' => $id ]; }, $calendar_ids ),
+        ];
+
+        $response = wp_remote_post( 'https://www.googleapis.com/calendar/v3/freeBusy', [
+            'headers' => [
+                'Authorization' => 'Bearer ' . $token,
+                'Content-Type'  => 'application/json',
+            ],
+            'body'    => wp_json_encode( $body ),
+            'timeout' => 15,
+        ] );
+
+        if ( is_wp_error( $response ) || wp_remote_retrieve_response_code( $response ) >= 400 ) {
+            return [];
+        }
+
+        $data = json_decode( wp_remote_retrieve_body( $response ), true );
+        $out  = [];
+        foreach ( (array) ( $data['calendars'] ?? [] ) as $cid => $info ) {
+            $intervals = [];
+            foreach ( (array) ( $info['busy'] ?? [] ) as $b ) {
+                try {
+                    $s = ( new \DateTime( $b['start'] ) )->setTimezone( $tz );
+                    $e = ( new \DateTime( $b['end'] ) )->setTimezone( $tz );
+                    $intervals[] = [ $s->format( 'H:i' ), $e->format( 'H:i' ) ];
+                } catch ( \Exception $e ) {
+                    continue;
+                }
+            }
+            $out[ $cid ] = $intervals;
+        }
+        return $out;
     }
 
     // ── OAuth2 ────────────────────────────────────────────────────────────────
