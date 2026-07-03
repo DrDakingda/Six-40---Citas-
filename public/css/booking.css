@@ -95,6 +95,9 @@
   margin: 0 0 10px;
   line-height: 1.25;
   color: var(--tf-white);
+  /* La fuente de titulares del tema no incluye mayúsculas acentuadas (Ó, etc.);
+     forzamos una con soporte completo para que se vean las tildes. */
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
 }
 
 .tf-sub {
