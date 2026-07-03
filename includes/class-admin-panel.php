@@ -229,7 +229,7 @@ class Six40_Admin_Panel {
         $appointments = $api->get_appointments( $filters );
         if ( is_wp_error( $appointments ) ) wp_send_json_error( $appointments->get_error_message() );
 
-        $status_colors = [ 'confirmed'=>'#e8c866','completed'=>'#4caf50','cancelled'=>'#e53e3e','no_show'=>'#a0a0a0' ];
+        $status_colors = [ 'confirmed'=>'#b11a2d','completed'=>'#4caf50','cancelled'=>'#e53e3e','no_show'=>'#a0a0a0' ];
 
         $events = [];
         foreach ( $appointments as $a ) {
@@ -241,9 +241,9 @@ class Six40_Admin_Panel {
                 'title'           => $title,
                 'start'           => ( $a['date'] ?? '' ) . 'T' . substr( $a['start_time'] ?? '', 0, 5 ),
                 'end'             => ( $a['date'] ?? '' ) . 'T' . substr( $a['end_time'] ?? '', 0, 5 ),
-                'backgroundColor' => $status_colors[$status] ?? '#e8c866',
-                'borderColor'     => $status_colors[$status] ?? '#e8c866',
-                'textColor'       => $status === 'confirmed' ? '#1a1a1a' : '#ffffff',
+                'backgroundColor' => $status_colors[$status] ?? '#b11a2d',
+                'borderColor'     => $status_colors[$status] ?? '#b11a2d',
+                'textColor'       => '#ffffff',
                 'extendedProps'   => [
                     'status'    => $status,
                     'location'  => $a['location'] ?? '',

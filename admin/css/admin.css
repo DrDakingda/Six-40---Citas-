@@ -1,13 +1,13 @@
-:root{--six40-gold:#e8c866;--six40-dark:#1a1a1a;--six40-border:#e0e0e0;--six40-gray:#f5f5f5;--six40-text:#333;--six40-muted:#888;--six40-green:#4caf50;--six40-red:#e53e3e;--six40-blue:#3182ce;--six40-orange:#ed8936;--six40-radius:8px;--six40-shadow:0 2px 8px rgba(0,0,0,.08)}
+:root{--six40-accent:#b11a2d;--six40-dark:#1a1a1a;--six40-border:#e0e0e0;--six40-gray:#f5f5f5;--six40-text:#333;--six40-muted:#888;--six40-green:#4caf50;--six40-red:#e53e3e;--six40-blue:#3182ce;--six40-orange:#ed8936;--six40-radius:8px;--six40-shadow:0 2px 8px rgba(0,0,0,.08)}
 .six40-admin{margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;color:var(--six40-text)}
 .six40-admin-header{background:var(--six40-dark);padding:0 24px;display:flex;align-items:center;gap:32px;margin-bottom:28px;border-radius:0 0 var(--six40-radius) var(--six40-radius)}
 .six40-logo{padding:18px 0;flex-shrink:0}
-.six40-logo-text{color:var(--six40-gold);font-size:22px;font-weight:800;letter-spacing:3px;display:block}
+.six40-logo-text{color:var(--six40-accent);font-size:22px;font-weight:800;letter-spacing:3px;display:block}
 .six40-logo-sub{color:#666;font-size:11px;letter-spacing:1px;display:block;margin-top:2px}
 .six40-nav{display:flex;gap:4px;margin-left:auto}
 .six40-nav a{color:#aaa;text-decoration:none;padding:8px 16px;border-radius:6px;font-size:13px;display:flex;align-items:center;gap:6px;transition:all .15s}
 .six40-nav a:hover{color:#fff;background:rgba(255,255,255,.06)}
-.six40-nav a.active{color:var(--six40-gold);background:rgba(232,200,102,.1)}
+.six40-nav a.active{color:var(--six40-accent);background:rgba(177,26,45,.12)}
 .six40-admin-content{padding:0 24px 40px}
 .six40-page-title{font-size:24px;font-weight:700;margin:0 0 4px;color:var(--six40-dark)}
 .six40-page-subtitle{color:var(--six40-muted);font-size:14px;margin:0 0 24px}
@@ -28,7 +28,7 @@
 .six40-customer-name{display:block;font-weight:600}
 .six40-customer-email{display:block;color:var(--six40-muted);font-size:11px}
 .six40-status{display:inline-flex;align-items:center;padding:3px 10px;border-radius:100px;font-size:11px;font-weight:600;letter-spacing:.3px;white-space:nowrap}
-.six40-status--confirmed{background:rgba(232,200,102,.15);color:#b58900}
+.six40-status--confirmed{background:rgba(177,26,45,.12);color:#b11a2d}
 .six40-status--completed{background:rgba(76,175,80,.15);color:#2e7d32}
 .six40-status--cancelled{background:rgba(229,62,62,.12);color:var(--six40-red)}
 .six40-status--no_show{background:#f0f0f0;color:#666}
@@ -36,8 +36,8 @@
 .six40-status--vacation{background:rgba(49,130,206,.12);color:var(--six40-blue)}
 .six40-status--sick{background:rgba(237,137,54,.12);color:var(--six40-orange)}
 .six40-status-select{border:1px solid var(--six40-border);border-radius:4px;padding:4px 8px;font-size:12px;cursor:pointer;background:#fff}
-.six40-btn{display:inline-flex;align-items:center;gap:6px;padding:8px 18px;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;border:2px solid transparent;text-decoration:none;transition:all .15s;background:var(--six40-gold);color:var(--six40-dark)}
-.six40-btn:hover{background:#d4b24f;color:var(--six40-dark)}
+.six40-btn{display:inline-flex;align-items:center;gap:6px;padding:8px 18px;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;border:2px solid transparent;text-decoration:none;transition:all .15s;background:var(--six40-accent);color:#fff}
+.six40-btn:hover{background:#8e1523;color:#fff}
 .six40-btn-sm{padding:5px 12px;font-size:12px}
 .six40-btn-outline{background:transparent;border-color:var(--six40-border);color:var(--six40-text)}
 .six40-btn-outline:hover{background:var(--six40-gray);color:var(--six40-text)}
@@ -49,7 +49,7 @@
 .six40-barber-card.six40-barber--available{border-color:rgba(76,175,80,.4)}
 .six40-barber-card.six40-barber--vacation{border-color:rgba(49,130,206,.4)}
 .six40-barber-card.six40-barber--sick{border-color:rgba(237,137,54,.4)}
-.six40-barber-avatar{width:52px;height:52px;border-radius:50%;background:var(--six40-dark);color:var(--six40-gold);font-size:20px;font-weight:800;display:flex;align-items:center;justify-content:center;margin:0 auto 12px}
+.six40-barber-avatar{width:52px;height:52px;border-radius:50%;background:var(--six40-dark);color:var(--six40-accent);font-size:20px;font-weight:800;display:flex;align-items:center;justify-content:center;margin:0 auto 12px}
 .six40-barber-info strong{display:block;font-size:14px;margin-bottom:6px}
 .six40-barber-status-label{margin-bottom:14px;display:inline-block}
 .six40-barber-controls{display:flex;flex-direction:column;gap:6px}

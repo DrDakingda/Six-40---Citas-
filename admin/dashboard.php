@@ -231,28 +231,9 @@ $page = sanitize_text_field( $_GET['page'] ?? 'six40-dashboard' );
             </button>
             <?php endforeach; ?>
           </div>
-          <div class="six40-days-off-toggle">
-            <button class="six40-days-off-btn" data-id="<?= esc_attr($b['id']) ?>">
-              📅 Días libres
-            </button>
-          </div>
         </div>
         <?php endforeach; ?>
       </div>
-
-      <?php foreach ( $barbers_list as $b ) :
-        if ( $b['location'] !== $loc_key ) continue;
-      ?>
-      <div class="six40-days-off-panel" id="days-off-<?= esc_attr($b['id']) ?>" style="display:none;">
-        <div class="six40-days-off-panel-header">
-          <strong>📅 <?= esc_html($b['name']) ?> — Días libres</strong>
-          <button class="six40-days-off-close" data-id="<?= esc_attr($b['id']) ?>">✕ Cerrar</button>
-        </div>
-        <div class="six40-days-off-cal-wrap" id="cal-wrap-<?= esc_attr($b['id']) ?>">
-          <div class="six40-cal-loading">Cargando…</div>
-        </div>
-      </div>
-      <?php endforeach; ?>
     </div>
     <?php endforeach; break;
 

@@ -113,42 +113,42 @@ class Six40_Email {
 <table width="100%" cellpadding="0" cellspacing="0" style="background:#f5f5f5;padding:40px 0;">
   <tr><td align="center">
     <table width="600" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:8px;overflow:hidden;max-width:600px;width:100%;">
-      <tr><td style="background:#1a1a1a;padding:32px 40px;text-align:center;">
-        <h1 style="color:#e8c866;margin:0;font-size:28px;letter-spacing:3px;">SIX40</h1>
+      <tr><td style="background:#000000;padding:32px 40px;text-align:center;">
+        <h1 style="color:#b11a2d;margin:0;font-size:28px;letter-spacing:3px;">SIX40</h1>
         <p style="color:#888;margin:4px 0 0;font-size:12px;letter-spacing:1px;">BARBERÍA · MÁLAGA &amp; TORREMOLINOS</p>
       </td></tr>
       <tr><td style="padding:40px;">
-        <h2 style="color:#1a1a1a;font-size:22px;margin:0 0 8px;">¡Cita confirmada! ✂️</h2>
+        <h2 style="color:#000000;font-size:22px;margin:0 0 8px;">¡Cita confirmada! ✂️</h2>
         <p style="color:#555;font-size:15px;line-height:1.6;margin:0 0 28px;">
           Hola <strong><?= esc_html( $d['customer_name'] ) ?></strong>, tu reserva está confirmada.
         </p>
-        <table width="100%" cellpadding="0" cellspacing="0" style="background:#f9f9f9;border-radius:6px;border-left:4px solid #e8c866;">
+        <table width="100%" cellpadding="0" cellspacing="0" style="background:#f9f9f9;border-radius:6px;border-left:4px solid #b11a2d;">
           <tr><td style="padding:24px 28px;">
             <table width="100%" cellpadding="0" cellspacing="0">
               <tr>
                 <td style="padding:7px 0;color:#888;font-size:13px;width:130px;">📍 Local</td>
-                <td style="padding:7px 0;color:#1a1a1a;font-size:15px;font-weight:700;"><?= esc_html( $d['location_label'] ) ?></td>
+                <td style="padding:7px 0;color:#000000;font-size:15px;font-weight:700;"><?= esc_html( $d['location_label'] ) ?></td>
               </tr>
               <tr>
                 <td style="padding:7px 0;color:#888;font-size:13px;">✂️ Servicio(s)</td>
-                <td style="padding:7px 0;color:#1a1a1a;font-size:15px;font-weight:700;"><?= esc_html( $d['service_label'] ) ?></td>
+                <td style="padding:7px 0;color:#000000;font-size:15px;font-weight:700;"><?= esc_html( $d['service_label'] ) ?></td>
               </tr>
               <tr>
                 <td style="padding:7px 0;color:#888;font-size:13px;">⏱️ Duración</td>
-                <td style="padding:7px 0;color:#1a1a1a;font-size:15px;font-weight:700;"><?= esc_html( $d['duration'] . ' min' ) ?></td>
+                <td style="padding:7px 0;color:#000000;font-size:15px;font-weight:700;"><?= esc_html( $d['duration'] . ' min' ) ?></td>
               </tr>
               <tr>
                 <td style="padding:7px 0;color:#888;font-size:13px;">📅 Fecha</td>
-                <td style="padding:7px 0;color:#1a1a1a;font-size:15px;font-weight:700;"><?= esc_html( $d['date_fmt'] ) ?></td>
+                <td style="padding:7px 0;color:#000000;font-size:15px;font-weight:700;"><?= esc_html( $d['date_fmt'] ) ?></td>
               </tr>
               <tr>
                 <td style="padding:7px 0;color:#888;font-size:13px;">🕐 Hora</td>
-                <td style="padding:7px 0;color:#1a1a1a;font-size:15px;font-weight:700;"><?= esc_html( $d['time_fmt'] ) ?></td>
+                <td style="padding:7px 0;color:#000000;font-size:15px;font-weight:700;"><?= esc_html( $d['time_fmt'] ) ?></td>
               </tr>
               <?php if ( $d['barber_name'] ) : ?>
               <tr>
                 <td style="padding:7px 0;color:#888;font-size:13px;">💈 Barbero/a</td>
-                <td style="padding:7px 0;color:#1a1a1a;font-size:15px;font-weight:700;"><?= esc_html( $d['barber_name'] ) ?></td>
+                <td style="padding:7px 0;color:#000000;font-size:15px;font-weight:700;"><?= esc_html( $d['barber_name'] ) ?></td>
               </tr>
               <?php endif; ?>
             </table>
@@ -158,7 +158,7 @@ class Six40_Email {
           ¿Necesitas cancelar o cambiar tu cita? Responde a este email y te ayudamos.
         </p>
       </td></tr>
-      <tr><td style="background:#1a1a1a;padding:20px 40px;text-align:center;">
+      <tr><td style="background:#000000;padding:20px 40px;text-align:center;">
         <p style="color:#555;font-size:12px;margin:0;">© <?= date('Y') ?> Six40 Barbería · Málaga &amp; Torremolinos</p>
       </td></tr>
     </table>
@@ -174,20 +174,20 @@ class Six40_Email {
 <!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"></head>
 <body style="margin:0;padding:40px;background:#f5f5f5;font-family:Arial,sans-serif;">
 <div style="max-width:600px;margin:0 auto;background:#fff;border-radius:8px;overflow:hidden;">
-  <div style="background:#1a1a1a;padding:32px;text-align:center;">
-    <h1 style="color:#e8c866;margin:0;font-size:24px;letter-spacing:3px;">SIX40</h1>
+  <div style="background:#000000;padding:32px;text-align:center;">
+    <h1 style="color:#b11a2d;margin:0;font-size:24px;letter-spacing:3px;">SIX40</h1>
   </div>
   <div style="padding:40px;">
-    <h2 style="color:#1a1a1a;">Tu cita ha sido cancelada</h2>
+    <h2 style="color:#000000;">Tu cita ha sido cancelada</h2>
     <p style="color:#555;line-height:1.6;">
       Hola <strong><?= esc_html( $name ) ?></strong>, confirmamos que tu cita ha sido cancelada.
     </p>
     <p style="color:#555;line-height:1.6;">
       Puedes reservar una nueva cita en
-      <a href="<?= esc_url( home_url( '/pide-cita/' ) ) ?>" style="color:#e8c866;">six40.katibu.es/pide-cita</a>.
+      <a href="<?= esc_url( home_url( '/pide-cita/' ) ) ?>" style="color:#b11a2d;">six40.katibu.es/pide-cita</a>.
     </p>
   </div>
-  <div style="background:#1a1a1a;padding:20px;text-align:center;">
+  <div style="background:#000000;padding:20px;text-align:center;">
     <p style="color:#555;font-size:12px;margin:0;">© <?= date('Y') ?> Six40 Barbería</p>
   </div>
 </div>
