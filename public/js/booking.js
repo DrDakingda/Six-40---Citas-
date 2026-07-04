@@ -268,6 +268,15 @@
     return p.length === 3 ? { y: +p[0], m: +p[1] - 1, d: +p[2] } : null;
   }
 
+  // ¿La fecha 'YYYY-MM-DD' cae dentro de algún rango de vacaciones?
+  function inVacation(ds, ranges) {
+    for (var i = 0; i < ranges.length; i++) {
+      var r = ranges[i];
+      if (r && r.start && r.end && ds >= r.start && ds <= r.end) { return true; }
+    }
+    return false;
+  }
+
   function buildCalendar() {
     // Iniciar en el mes del día ya elegido, o en el mes de hoy.
     if (calYear === undefined) {
@@ -296,12 +305,20 @@
     var closedWeekdays = (six40Ajax && six40Ajax.closedWeekdays) || [];
     var holidays       = (six40Ajax && six40Ajax.holidays) || [];
 
+    // Vacaciones del barbero elegido (solo si se ha elegido barbero concreto).
+    var vacRanges = [];
+    if (!skipBarberStep) {
+      var selBarber = parseInt($('#tf-barber-id').val(), 10) || 0;
+      var allVac = (six40Ajax && six40Ajax.barberVacations) || {};
+      if (selBarber && allVac[selBarber]) { vacRanges = allVac[selBarber]; }
+    }
+
     var html = '';
     for (var i = 0; i < startOffset; i++) { html += '<span class="tf-cal-cell tf-cal-empty"></span>'; }
     for (var d = 1; d <= daysInMonth; d++) {
       var ds  = ymd(calYear, calMonth, d);
       var dow = new Date(calYear, calMonth, d).getDay(); // 0=domingo
-      var closed = (closedWeekdays.indexOf(dow) !== -1) || (holidays.indexOf(ds) !== -1);
+      var closed = (closedWeekdays.indexOf(dow) !== -1) || (holidays.indexOf(ds) !== -1) || inVacation(ds, vacRanges);
       var disabled = (TODAY && ds < TODAY) || (MAXD && ds > MAXD) || closed;
       var cls = 'tf-cal-cell tf-cal-day'
               + (disabled ? ' tf-cal-disabled' : '')
