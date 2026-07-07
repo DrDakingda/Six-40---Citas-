@@ -189,7 +189,7 @@ $max_day = wp_date( 'Y-m-d', strtotime( '+60 days' ) );
     <div class="tf-success-inner">
       <div class="tf-success-check">✓</div>
       <h2>¡Cita confirmada!</h2>
-      <p>Tu cita ha quedado registrada. ¡Te esperamos en la barbería!</p>
+      <p>Revisa tu bandeja de entrada — te enviamos todos los detalles.</p>
       <a href="<?= esc_url( home_url( '/' ) ) ?>" class="tf-btn-ok tf-btn-home">Volver a la home</a>
     </div>
   </div>

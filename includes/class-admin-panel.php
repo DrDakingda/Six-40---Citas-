@@ -101,7 +101,8 @@ class Six40_Admin_Panel {
 
         $cfg = (array) get_option( 'six40_settings', [] );
         foreach ( [ 'supabase_url','supabase_key','google_client_id','google_client_secret',
-                    'google_calendar_malaga','google_calendar_torremolinos' ] as $f ) {
+                    'google_calendar_malaga','google_calendar_torremolinos',
+                    'resend_api_key','email_from','email_from_name' ] as $f ) {
             $cfg[ $f ] = sanitize_text_field( $_POST[ $f ] ?? '' );
         }
         update_option( 'six40_settings', $cfg );
@@ -163,6 +164,10 @@ class Six40_Admin_Panel {
         $api    = new Six40_Booking_API();
         $result = $api->update_appointment_status( $id, $status );
         if ( is_wp_error( $result ) ) wp_send_json_error( $result->get_error_message() );
+
+        if ( $status === 'cancelled' && ! empty( $result[0] ) ) {
+            ( new Six40_Email() )->send_cancellation( $result[0] );
+        }
 
         wp_send_json_success( [ 'status' => $status ] );
     }

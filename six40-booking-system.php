@@ -3,7 +3,7 @@
  * Plugin Name: Six40 Booking System
  * Plugin URI:  https://six40.katibu.es/
  * Description: Sistema de citas para Sixcuarenta 640 Barbería (Málaga y Torremolinos).
- * Version:     1.9.0
+ * Version:     1.8.0
  * Author:      Katibu
  * Author URI:  https://katibu.es/
  * License:     GPL-2.0+
@@ -13,7 +13,7 @@
 defined( 'ABSPATH' ) || exit;
 
 // ── Constants ──────────────────────────────────────────────────────────────────
-define( 'SIX40_VERSION',    '1.9.0' );
+define( 'SIX40_VERSION',    '1.8.0' );
 define( 'SIX40_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'SIX40_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 define( 'SIX40_PLUGIN_FILE', __FILE__ );
@@ -21,6 +21,7 @@ define( 'SIX40_PLUGIN_FILE', __FILE__ );
 // ── Autoload ───────────────────────────────────────────────────────────────────
 require_once SIX40_PLUGIN_DIR . 'includes/class-booking-api.php';
 require_once SIX40_PLUGIN_DIR . 'includes/class-google-calendar.php';
+require_once SIX40_PLUGIN_DIR . 'includes/class-email.php';
 require_once SIX40_PLUGIN_DIR . 'includes/class-admin-panel.php';
 require_once SIX40_PLUGIN_DIR . 'assets/shortcode.php';
 
@@ -42,6 +43,9 @@ function six40_activate() {
             'google_client_secret'         => '',
             'google_calendar_malaga'       => '',
             'google_calendar_torremolinos' => '',
+            'resend_api_key'               => '',
+            'email_from'                   => 'noreply@six40.katibu.es',
+            'email_from_name'              => 'Six40 Barbería',
         ] );
     }
     flush_rewrite_rules();
@@ -74,9 +78,10 @@ function six40_cron_check_cancellations() {
     foreach ( $appts as $a ) {
         $status = $gc->get_event_status( $a['google_calendar_id'] ?? '', $a['google_event_id'] ?? '' );
         if ( 'cancelled' === $status || 'deleted' === $status ) {
-            // Marca la cita como cancelada. (La notificación al cliente se hará
-            // por SMS en el futuro; por ahora sin aviso automático.)
-            $api->update_appointment_status( $a['id'], 'cancelled' );
+            $res = $api->update_appointment_status( $a['id'], 'cancelled' );
+            if ( ! is_wp_error( $res ) ) {
+                ( new Six40_Email() )->send_cancellation( $a );
+            }
         }
     }
 }
@@ -257,7 +262,7 @@ function six40_ajax_submit_booking() {
         wp_send_json_error( [ 'message' => $result->get_error_message() ] );
     }
 
-    // Integración con Google Calendar (fire-and-forget; los errores no bloquean la cita).
+    // Fire-and-forget integrations (los errores no bloquean la cita, pero se registran).
     $gc = ( new Six40_Google_Calendar() )->create_event( $result );
     if ( is_wp_error( $gc ) ) {
         error_log( 'Six40 Google Calendar: ' . $gc->get_error_message() );
@@ -265,9 +270,13 @@ function six40_ajax_submit_booking() {
         // Guardamos el evento para poder detectar anulaciones desde Google.
         $api->set_appointment_google_event( $result['id'], $gc['event_id'], $gc['calendar_id'] ?? '' );
     }
+    $em = ( new Six40_Email() )->send_confirmation( $result );
+    if ( is_wp_error( $em ) ) {
+        error_log( 'Six40 Email: ' . $em->get_error_message() );
+    }
 
     wp_send_json_success( [
-        'message'        => __( '¡Cita confirmada!', 'six40-booking' ),
+        'message'        => __( '¡Cita confirmada! Recibirás un correo de confirmación.', 'six40-booking' ),
         'appointment_id' => $result['id'] ?? null,
     ] );
 }
