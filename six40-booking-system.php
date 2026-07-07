@@ -3,7 +3,7 @@
  * Plugin Name: Six40 Booking System
  * Plugin URI:  https://six40.katibu.es/
  * Description: Sistema de citas para Sixcuarenta 640 Barbería (Málaga y Torremolinos).
- * Version:     1.7.0
+ * Version:     1.8.0
  * Author:      Katibu
  * Author URI:  https://katibu.es/
  * License:     GPL-2.0+
@@ -13,7 +13,7 @@
 defined( 'ABSPATH' ) || exit;
 
 // ── Constants ──────────────────────────────────────────────────────────────────
-define( 'SIX40_VERSION',    '1.7.0' );
+define( 'SIX40_VERSION',    '1.8.0' );
 define( 'SIX40_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'SIX40_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 define( 'SIX40_PLUGIN_FILE', __FILE__ );
@@ -52,7 +52,38 @@ function six40_activate() {
 }
 
 function six40_deactivate() {
+    wp_clear_scheduled_hook( 'six40_check_cancellations' );
     flush_rewrite_rules();
+}
+
+// ── Cron: comprobación de anulaciones en Google Calendar ─────────────────────────
+add_filter( 'cron_schedules', 'six40_cron_intervals' );
+function six40_cron_intervals( $schedules ) {
+    $schedules['six40_ten_minutes'] = [
+        'interval' => 600,
+        'display'  => __( 'Cada 10 minutos (Six40)', 'six40-booking' ),
+    ];
+    return $schedules;
+}
+
+add_action( 'six40_check_cancellations', 'six40_cron_check_cancellations' );
+
+function six40_cron_check_cancellations() {
+    $api   = new Six40_Booking_API();
+    $appts = $api->get_appointments_to_check();
+    if ( empty( $appts ) ) {
+        return;
+    }
+    $gc = new Six40_Google_Calendar();
+    foreach ( $appts as $a ) {
+        $status = $gc->get_event_status( $a['google_calendar_id'] ?? '', $a['google_event_id'] ?? '' );
+        if ( 'cancelled' === $status || 'deleted' === $status ) {
+            $res = $api->update_appointment_status( $a['id'], 'cancelled' );
+            if ( ! is_wp_error( $res ) ) {
+                ( new Six40_Email() )->send_cancellation( $a );
+            }
+        }
+    }
 }
 
 // ── Boot ───────────────────────────────────────────────────────────────────────
@@ -61,6 +92,10 @@ add_action( 'plugins_loaded', 'six40_init' );
 function six40_init() {
     if ( is_admin() ) {
         Six40_Admin_Panel::get_instance();
+    }
+    // Programa la comprobación de anulaciones si no está programada.
+    if ( ! wp_next_scheduled( 'six40_check_cancellations' ) ) {
+        wp_schedule_event( time() + 300, 'six40_ten_minutes', 'six40_check_cancellations' );
     }
     add_action( 'wp_enqueue_scripts',              'six40_register_public_assets' );
     add_action( 'wp_ajax_six40_get_services',        'six40_ajax_get_services' );
@@ -231,6 +266,9 @@ function six40_ajax_submit_booking() {
     $gc = ( new Six40_Google_Calendar() )->create_event( $result );
     if ( is_wp_error( $gc ) ) {
         error_log( 'Six40 Google Calendar: ' . $gc->get_error_message() );
+    } elseif ( is_array( $gc ) && ! empty( $gc['event_id'] ) && ! empty( $result['id'] ) ) {
+        // Guardamos el evento para poder detectar anulaciones desde Google.
+        $api->set_appointment_google_event( $result['id'], $gc['event_id'], $gc['calendar_id'] ?? '' );
     }
     $em = ( new Six40_Email() )->send_confirmation( $result );
     if ( is_wp_error( $em ) ) {

@@ -100,6 +100,7 @@ class Six40_Google_Calendar {
 
         $ok         = false;
         $last_error = null;
+        $primary    = null; // { event_id, calendar_id } del calendario del barbero (idx 0)
         foreach ( $targets as $idx => $cid ) {
             // El cliente se añade como invitado SOLO en el primer calendario
             // (el del barbero), para que reciba una única invitación.
@@ -126,9 +127,15 @@ class Six40_Google_Calendar {
             }
             $code = wp_remote_retrieve_response_code( $response );
             if ( $code >= 400 ) {
-                $body = json_decode( wp_remote_retrieve_body( $response ), true );
-                $last_error = new WP_Error( 'calendar_error', $body['error']['message'] ?? "HTTP $code" );
+                $err = json_decode( wp_remote_retrieve_body( $response ), true );
+                $last_error = new WP_Error( 'calendar_error', $err['error']['message'] ?? "HTTP $code" );
                 continue;
+            }
+            // Guardamos el id del evento del calendario del barbero (idx 0) para
+            // poder detectar después si lo anulan.
+            if ( $idx === 0 ) {
+                $data = json_decode( wp_remote_retrieve_body( $response ), true );
+                $primary = [ 'event_id' => $data['id'] ?? '', 'calendar_id' => $cid ];
             }
             $ok = true;
         }
@@ -136,7 +143,43 @@ class Six40_Google_Calendar {
         if ( ! $ok && $last_error ) {
             return $last_error;
         }
-        return true;
+        return $primary ?: true;
+    }
+
+    /**
+     * Estado de un evento en Google Calendar: 'active' | 'cancelled' | 'deleted' | null (error/skip).
+     *
+     * @param string $calendar_id
+     * @param string $event_id
+     * @return string|null
+     */
+    public function get_event_status( $calendar_id, $event_id ) {
+        if ( ! $calendar_id || ! $event_id ) {
+            return null;
+        }
+        $token = $this->get_access_token();
+        if ( is_wp_error( $token ) ) {
+            return null;
+        }
+        $url = 'https://www.googleapis.com/calendar/v3/calendars/' . rawurlencode( $calendar_id )
+             . '/events/' . rawurlencode( $event_id );
+        $response = wp_remote_get( $url, [
+            'headers' => [ 'Authorization' => 'Bearer ' . $token ],
+            'timeout' => 15,
+        ] );
+        if ( is_wp_error( $response ) ) {
+            return null;
+        }
+        $code = wp_remote_retrieve_response_code( $response );
+        if ( 404 === $code || 410 === $code ) {
+            return 'deleted';
+        }
+        if ( $code >= 400 ) {
+            return null; // error transitorio: no tocar la cita
+        }
+        $data   = json_decode( wp_remote_retrieve_body( $response ), true );
+        $status = $data['status'] ?? '';
+        return ( 'cancelled' === $status ) ? 'cancelled' : 'active';
     }
 
     /**

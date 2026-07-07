@@ -190,6 +190,8 @@ CREATE TABLE IF NOT EXISTS public.appointments (
   status          TEXT NOT NULL DEFAULT 'confirmed'
                   CHECK (status IN ('confirmed', 'completed', 'cancelled', 'no_show')),
   notes           TEXT,
+  google_event_id    TEXT,   -- evento en el calendario del barbero (para detectar anulaciones)
+  google_calendar_id TEXT,
   created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
