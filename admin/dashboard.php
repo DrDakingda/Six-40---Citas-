@@ -383,18 +383,15 @@ $page = sanitize_text_field( $_GET['page'] ?? 'six40-dashboard' );
       </div>
 
       <div class="six40-panel">
-        <div class="six40-panel-header"><h2>📧 Email (Resend)</h2></div>
+        <div class="six40-panel-header"><h2>📧 Email</h2></div>
         <table class="form-table">
-          <tr><th><label for="resend_api_key">API Key</label></th>
-            <td><input type="password" id="resend_api_key" name="resend_api_key" class="regular-text"
-                value="<?= esc_attr($cfg_data['resend_api_key']??'') ?>">
-              <p class="description">Si está vacío se usa wp_mail como fallback.</p></td></tr>
           <tr><th><label for="email_from_name">Nombre remitente</label></th>
             <td><input type="text" id="email_from_name" name="email_from_name" class="regular-text"
                 value="<?= esc_attr($cfg_data['email_from_name']??'Six40 Barbería') ?>"></td></tr>
           <tr><th><label for="email_from">Email remitente</label></th>
             <td><input type="email" id="email_from" name="email_from" class="regular-text"
-                value="<?= esc_attr($cfg_data['email_from']??'') ?>" placeholder="noreply@six40.katibu.es"></td></tr>
+                value="<?= esc_attr($cfg_data['email_from']??'') ?>" placeholder="noreply@tudominio.com">
+              <p class="description">Los correos se envían con el email nativo de WordPress (wp_mail). Si el remitente está vacío, se usa el de WordPress por defecto.</p></td></tr>
         </table>
       </div>
 

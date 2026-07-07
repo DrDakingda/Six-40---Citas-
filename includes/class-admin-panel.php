@@ -102,7 +102,7 @@ class Six40_Admin_Panel {
         $cfg = (array) get_option( 'six40_settings', [] );
         foreach ( [ 'supabase_url','supabase_key','google_client_id','google_client_secret',
                     'google_calendar_malaga','google_calendar_torremolinos',
-                    'resend_api_key','email_from','email_from_name' ] as $f ) {
+                    'email_from','email_from_name' ] as $f ) {
             $cfg[ $f ] = sanitize_text_field( $_POST[ $f ] ?? '' );
         }
         update_option( 'six40_settings', $cfg );

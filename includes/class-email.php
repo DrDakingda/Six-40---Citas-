@@ -2,7 +2,7 @@
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Email notifications via Resend API (fallback: wp_mail).
+ * Emails transaccionales (confirmación y cancelación) vía wp_mail de WordPress.
  */
 class Six40_Email {
 
@@ -62,46 +62,21 @@ class Six40_Email {
         );
     }
 
-    // ── Resend / wp_mail ───────────────────────────────────────────────────────
+    // ── Envío vía WordPress (wp_mail) ────────────────────────────────────────────
 
     private function send( $to, $name, $subject, $html ) {
-        $cfg     = $this->settings();
-        $api_key = $cfg['resend_api_key'] ?? '';
+        $cfg = $this->settings();
 
-        if ( ! $api_key ) {
-            return wp_mail( $to, $subject, $html, [ 'Content-Type: text/html; charset=UTF-8' ] )
-                ? true
-                : new WP_Error( 'mail_failed', 'wp_mail failed.' );
+        $headers    = [ 'Content-Type: text/html; charset=UTF-8' ];
+        $from_email = trim( (string) ( $cfg['email_from'] ?? '' ) );
+        if ( $from_email && is_email( $from_email ) ) {
+            $from_name = $cfg['email_from_name'] ?? 'Six40 Barbería';
+            $headers[] = sprintf( 'From: %s <%s>', $from_name, $from_email );
         }
 
-        $from = sprintf( '%s <%s>',
-            $cfg['email_from_name'] ?? 'Six40 Barbería',
-            $cfg['email_from'] ?? 'noreply@six40.katibu.es'
-        );
+        $sent = wp_mail( $to, $subject, $html, $headers );
 
-        $response = wp_remote_post( 'https://api.resend.com/emails', [
-            'headers' => [
-                'Authorization' => 'Bearer ' . $api_key,
-                'Content-Type'  => 'application/json',
-            ],
-            'body'    => wp_json_encode( [
-                'from'    => $from,
-                'to'      => [ "$name <$to>" ],
-                'subject' => $subject,
-                'html'    => $html,
-            ] ),
-            'timeout' => 15,
-        ] );
-
-        if ( is_wp_error( $response ) ) return $response;
-
-        $code = wp_remote_retrieve_response_code( $response );
-        if ( $code >= 400 ) {
-            $body = json_decode( wp_remote_retrieve_body( $response ), true );
-            return new WP_Error( 'resend_error', $body['message'] ?? "HTTP $code" );
-        }
-
-        return true;
+        return $sent ? true : new WP_Error( 'mail_failed', 'wp_mail no pudo enviar el correo.' );
     }
 
     // ── Templates ─────────────────────────────────────────────────────────────
