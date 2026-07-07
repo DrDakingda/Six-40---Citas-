@@ -138,6 +138,42 @@ class Six40_Booking_API {
 		return is_array( $result ) ? $result : [];
 	}
 
+	/**
+	 * Todos los tramos de horario (todos los barberos y días). Para el editor admin.
+	 *
+	 * @return array filas [id, barber_id, day_of_week, start_time, end_time]
+	 */
+	public function get_all_barber_schedules() {
+		$r = $this->supabase_request( 'GET', 'barber_schedules', [], [
+			'select' => 'id,barber_id,day_of_week,start_time,end_time',
+			'order'  => 'barber_id.asc,day_of_week.asc,start_time.asc',
+		] );
+		return is_wp_error( $r ) ? [] : (array) $r;
+	}
+
+	/**
+	 * Añade un tramo de horario a un barbero.
+	 *
+	 * @return array|WP_Error
+	 */
+	public function add_barber_schedule( $barber_id, $day_of_week, $start, $end ) {
+		return $this->supabase_request( 'POST', 'barber_schedules', [
+			'barber_id'   => intval( $barber_id ),
+			'day_of_week' => intval( $day_of_week ),
+			'start_time'  => $start,
+			'end_time'    => $end,
+		] );
+	}
+
+	/**
+	 * Elimina un tramo de horario por id.
+	 *
+	 * @return array|WP_Error
+	 */
+	public function delete_barber_schedule( $id ) {
+		return $this->supabase_request( 'DELETE', 'barber_schedules', [], [ 'id' => 'eq.' . intval( $id ) ] );
+	}
+
 	// ── Public: Availability ──────────────────────────────────────────────────
 
 	/**

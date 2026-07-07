@@ -21,6 +21,8 @@ class Six40_Admin_Panel {
         add_action( 'wp_ajax_six40_toggle_day_off',        [ $this, 'ajax_toggle_day_off' ] );
         add_action( 'wp_ajax_six40_add_vacation',          [ $this, 'ajax_add_vacation' ] );
         add_action( 'wp_ajax_six40_delete_vacation',       [ $this, 'ajax_delete_vacation' ] );
+        add_action( 'wp_ajax_six40_add_schedule',          [ $this, 'ajax_add_schedule' ] );
+        add_action( 'wp_ajax_six40_delete_schedule',       [ $this, 'ajax_delete_schedule' ] );
         add_action( 'admin_init',            [ $this, 'handle_oauth_callback' ] );
     }
 
@@ -268,6 +270,49 @@ class Six40_Admin_Panel {
         }
 
         wp_send_json_success( [ 'barber_id' => $barber_id ] );
+    }
+
+    // ── Horarios de barberos (tabla barber_schedules) ─────────────────────────
+
+    public function ajax_add_schedule() {
+        check_ajax_referer( 'six40_admin_nonce', 'nonce' );
+        if ( ! current_user_can( 'manage_options' ) ) wp_send_json_error( 'Unauthorized' );
+
+        $barber_id = intval( $_POST['barber_id'] ?? 0 );
+        $day       = intval( $_POST['day'] ?? -1 );
+        $start     = sanitize_text_field( $_POST['start'] ?? '' );
+        $end       = sanitize_text_field( $_POST['end'] ?? '' );
+
+        $re = '/^\d{2}:\d{2}$/';
+        if ( ! $barber_id || $day < 0 || $day > 6 || ! preg_match( $re, $start ) || ! preg_match( $re, $end ) ) {
+            wp_send_json_error( 'Datos inválidos.' );
+        }
+        if ( $end <= $start ) {
+            wp_send_json_error( 'La hora de fin debe ser posterior a la de inicio.' );
+        }
+
+        $api    = new Six40_Booking_API();
+        $result = $api->add_barber_schedule( $barber_id, $day, $start, $end );
+        if ( is_wp_error( $result ) ) {
+            wp_send_json_error( $result->get_error_message() );
+        }
+        wp_send_json_success( [ 'barber_id' => $barber_id ] );
+    }
+
+    public function ajax_delete_schedule() {
+        check_ajax_referer( 'six40_admin_nonce', 'nonce' );
+        if ( ! current_user_can( 'manage_options' ) ) wp_send_json_error( 'Unauthorized' );
+
+        $id = intval( $_POST['id'] ?? 0 );
+        if ( ! $id ) {
+            wp_send_json_error( 'ID inválido.' );
+        }
+        $api    = new Six40_Booking_API();
+        $result = $api->delete_barber_schedule( $id );
+        if ( is_wp_error( $result ) ) {
+            wp_send_json_error( $result->get_error_message() );
+        }
+        wp_send_json_success( [ 'id' => $id ] );
     }
 
     public function ajax_get_appointments_json() {

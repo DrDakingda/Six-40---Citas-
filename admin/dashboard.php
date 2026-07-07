@@ -205,6 +205,19 @@ $page = sanitize_text_field( $_GET['page'] ?? 'six40-dashboard' );
       $btn_labels    = ['available'=>'✅ Disponible','vacation'=>'🏖️ Vacaciones','sick'=>'🤒 Baja'];
       $locations     = ['malaga'=>'Málaga','torremolinos'=>'Torremolinos'];
       $vacations_all = (array) get_option('six40_barber_vacations', []);
+      // Horarios: mapa [barber_id][day_of_week] = [ [id,start,end], ... ]
+      $schedules_raw = $api_barbers->get_all_barber_schedules();
+      $sched_map = [];
+      foreach ($schedules_raw as $row) {
+        $sbid = (int)($row['barber_id'] ?? 0);
+        $sdow = (int)($row['day_of_week'] ?? 0);
+        $sched_map[$sbid][$sdow][] = [
+          'id'    => $row['id'] ?? '',
+          'start' => substr($row['start_time'] ?? '', 0, 5),
+          'end'   => substr($row['end_time'] ?? '', 0, 5),
+        ];
+      }
+      $day_names = ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo']; // 0..6
     ?>
     <h1 class="six40-page-title">Gestión de Barberos</h1>
     <p class="six40-page-subtitle">Los cambios se aplican al instante. Los clientes no podrán reservar con un barbero en Vacaciones, Baja, ni en las fechas de vacaciones programadas.</p>
@@ -253,9 +266,42 @@ $page = sanitize_text_field( $_GET['page'] ?? 'six40-dashboard' );
               <button class="six40-vac-add-btn" data-id="<?= esc_attr($b['id']) ?>">Añadir</button>
             </div>
           </div>
+          <button type="button" class="six40-sched-toggle" data-id="<?= esc_attr($b['id']) ?>">🕐 Editar horario</button>
         </div>
         <?php endforeach; ?>
       </div>
+
+      <?php foreach ( $barbers_list as $b ) :
+        if ( $b['location'] !== $loc_key ) continue;
+        $bid = (int) $b['id'];
+      ?>
+      <div class="six40-sched-panel" id="sched-<?= $bid ?>" style="display:none;">
+        <div class="six40-sched-head">
+          <strong>🕐 Horario · <?= esc_html($b['name']) ?></strong>
+          <button class="six40-sched-close" data-id="<?= $bid ?>">✕ Cerrar</button>
+        </div>
+        <div class="six40-sched-days">
+          <?php foreach ($day_names as $dow => $dname): $tramos = $sched_map[$bid][$dow] ?? []; ?>
+          <div class="six40-sched-day">
+            <span class="six40-sched-day-name"><?= esc_html($dname) ?></span>
+            <span class="six40-sched-tramos">
+              <?php if (empty($tramos)): ?><span class="six40-sched-empty">Cerrado</span>
+              <?php else: foreach ($tramos as $t): ?>
+                <span class="six40-sched-chip"><?= esc_html($t['start'].'–'.$t['end']) ?>
+                  <button class="six40-sched-del" data-id="<?= esc_attr($t['id']) ?>" title="Eliminar">✕</button>
+                </span>
+              <?php endforeach; endif; ?>
+            </span>
+            <span class="six40-sched-add">
+              <input type="time" class="six40-sched-from" aria-label="Desde">
+              <input type="time" class="six40-sched-to" aria-label="Hasta">
+              <button class="six40-sched-add-btn" data-id="<?= $bid ?>" data-day="<?= $dow ?>">+ Añadir</button>
+            </span>
+          </div>
+          <?php endforeach; ?>
+        </div>
+      </div>
+      <?php endforeach; ?>
     </div>
     <?php endforeach; break;
 

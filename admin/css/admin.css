@@ -71,6 +71,26 @@
 .six40-vac-add input[type="date"]{border:1px solid var(--six40-border);border-radius:4px;padding:3px 6px;font-size:11px;flex:1 1 90px;min-width:0}
 .six40-vac-add-btn{border:1px solid var(--six40-accent);background:var(--six40-accent);color:#fff;border-radius:4px;padding:4px 12px;font-size:11px;cursor:pointer;white-space:nowrap}
 .six40-vac-add-btn:hover{background:#8e1523}
+.six40-sched-toggle{margin-top:10px;width:100%;border:1px solid var(--six40-border);background:#fff;border-radius:4px;padding:6px 10px;font-size:12px;cursor:pointer;transition:all .15s}
+.six40-sched-toggle:hover{background:var(--six40-gray)}
+.six40-sched-panel{border-top:2px solid var(--six40-border);padding:16px 24px 20px;background:#fafafa}
+.six40-sched-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;font-size:14px;color:var(--six40-dark)}
+.six40-sched-close{background:none;border:1px solid var(--six40-border);border-radius:4px;padding:4px 12px;cursor:pointer;font-size:12px;color:var(--six40-muted)}
+.six40-sched-close:hover{background:#fff;color:var(--six40-red)}
+.six40-sched-days{display:flex;flex-direction:column;gap:8px}
+.six40-sched-day{display:grid;grid-template-columns:100px 1fr auto;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid var(--six40-border)}
+.six40-sched-day:last-child{border-bottom:0}
+.six40-sched-day-name{font-size:13px;font-weight:600;color:var(--six40-dark)}
+.six40-sched-tramos{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.six40-sched-empty{font-size:12px;color:var(--six40-muted)}
+.six40-sched-chip{display:inline-flex;align-items:center;gap:5px;background:#fff;border:1px solid var(--six40-border);border-radius:100px;padding:3px 8px 3px 12px;font-size:12px}
+.six40-sched-del{border:none;background:none;color:var(--six40-muted);cursor:pointer;font-size:12px;line-height:1;padding:0 2px}
+.six40-sched-del:hover{color:var(--six40-red)}
+.six40-sched-add{display:flex;gap:5px;align-items:center;justify-content:flex-end}
+.six40-sched-add input[type="time"]{border:1px solid var(--six40-border);border-radius:4px;padding:3px 6px;font-size:12px}
+.six40-sched-add-btn{border:1px solid var(--six40-accent);background:var(--six40-accent);color:#fff;border-radius:4px;padding:4px 10px;font-size:12px;cursor:pointer;white-space:nowrap}
+.six40-sched-add-btn:hover{background:#8e1523}
+@media(max-width:640px){.six40-sched-day{grid-template-columns:1fr;gap:6px}.six40-sched-add{justify-content:flex-start}}
 #six40-calendar{padding:20px 24px;min-height:500px}
 .six40-empty{padding:48px;text-align:center;color:var(--six40-muted);font-size:14px}
 .six40-admin .notice{margin:0 0 20px}

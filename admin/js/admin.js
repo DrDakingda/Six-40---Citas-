@@ -69,6 +69,37 @@
     }).fail(function(){ toast('Error de conexión.','error'); $btn.prop('disabled',false); });
   });
 
+  // ── Horarios: abrir/cerrar panel ────────────────────────────────────────────
+  $(document).on('click', '.six40-sched-toggle', function(){
+    $('#sched-' + $(this).data('id')).slideToggle(180);
+  });
+  $(document).on('click', '.six40-sched-close', function(){
+    $('#sched-' + $(this).data('id')).slideUp(180);
+  });
+
+  // Horarios: añadir tramo
+  $(document).on('click', '.six40-sched-add-btn', function(){
+    var $btn = $(this), bid = $btn.data('id'), day = $btn.data('day'), $row = $btn.closest('.six40-sched-add');
+    var from = $row.find('.six40-sched-from').val(), to = $row.find('.six40-sched-to').val();
+    if (!from || !to) { toast('Pon hora de inicio y fin.','error'); return; }
+    if (to <= from)  { toast('El fin debe ser posterior al inicio.','error'); return; }
+    $btn.prop('disabled',true);
+    $.post(six40Admin.ajaxUrl, { action:'six40_add_schedule', nonce:six40Admin.nonce, barber_id:bid, day:day, start:from, end:to }, function(res){
+      if (res.success) { toast('Tramo añadido.','success'); location.reload(); }
+      else { toast('Error: '+(res.data||'No se pudo añadir.'),'error'); $btn.prop('disabled',false); }
+    }).fail(function(){ toast('Error de conexión.','error'); $btn.prop('disabled',false); });
+  });
+
+  // Horarios: eliminar tramo
+  $(document).on('click', '.six40-sched-del', function(){
+    var $btn = $(this), id = $btn.data('id');
+    $btn.prop('disabled',true);
+    $.post(six40Admin.ajaxUrl, { action:'six40_delete_schedule', nonce:six40Admin.nonce, id:id }, function(res){
+      if (res.success) { toast('Tramo eliminado.','success'); location.reload(); }
+      else { toast('Error: '+(res.data||'No se pudo eliminar.'),'error'); $btn.prop('disabled',false); }
+    }).fail(function(){ toast('Error de conexión.','error'); $btn.prop('disabled',false); });
+  });
+
   // FullCalendar
   var calEl = document.getElementById('six40-calendar');
   if (!calEl) return;
