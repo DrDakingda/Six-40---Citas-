@@ -79,8 +79,9 @@ class Six40_Google_Calendar {
         $event = [
             'summary'     => sprintf( '%s — %s', $service_label, $appointment['customer_name'] ?? '' ),
             'description' => sprintf(
-                "Cliente: %s\nEmail: %s\nServicios: %s\nDuración: %d min\nBarbero: %s",
+                "Cliente: %s\nTeléfono: %s\nEmail: %s\nServicios: %s\nDuración: %d min\nBarbero: %s",
                 $appointment['customer_name'] ?? '',
+                $appointment['customer_phone'] ?? '',
                 $appointment['customer_email'] ?? '',
                 $service_label,
                 $appointment['duration'] ?? 0,
@@ -88,7 +89,6 @@ class Six40_Google_Calendar {
             ),
             'start' => [ 'dateTime' => "{$date}T{$time_start}:00", 'timeZone' => 'Europe/Madrid' ],
             'end'   => [ 'dateTime' => "{$date}T{$time_end}:00",   'timeZone' => 'Europe/Madrid' ],
-            'attendees' => [ [ 'email' => $appointment['customer_email'] ?? '' ] ],
             'reminders' => [
                 'useDefault' => false,
                 'overrides'  => [
@@ -100,7 +100,14 @@ class Six40_Google_Calendar {
 
         $ok         = false;
         $last_error = null;
-        foreach ( $targets as $cid ) {
+        foreach ( $targets as $idx => $cid ) {
+            // El cliente se añade como invitado SOLO en el primer calendario
+            // (el del barbero), para que reciba una única invitación.
+            $body = $event;
+            if ( $idx === 0 && ! empty( $appointment['customer_email'] ) ) {
+                $body['attendees'] = [ [ 'email' => $appointment['customer_email'] ] ];
+            }
+
             $response = wp_remote_post(
                 'https://www.googleapis.com/calendar/v3/calendars/' . rawurlencode( $cid ) . '/events',
                 [
@@ -108,7 +115,7 @@ class Six40_Google_Calendar {
                         'Authorization' => 'Bearer ' . $token,
                         'Content-Type'  => 'application/json',
                     ],
-                    'body'    => wp_json_encode( $event ),
+                    'body'    => wp_json_encode( $body ),
                     'timeout' => 15,
                 ]
             );
