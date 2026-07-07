@@ -169,6 +169,11 @@ INSERT INTO public.services (id, name, duration, type, category, location, price
   (30, 'Iluminaciones',             30, 'additional', 'tratamiento', 'torremolinos', 12.00, false, 34)
 ON CONFLICT DO NOTHING;
 
+-- Duraciones base normalizadas: barbas 20 min, depilación 10 min c/u.
+-- (Las combinaciones corte+barba=40, corte+mechas=60, etc. las calcula el plugin.)
+UPDATE public.services SET duration = 20 WHERE category = 'barba';
+UPDATE public.services SET duration = 10 WHERE category = 'depilacion';
+
 -- ============================================================
 -- 4. TABLA: Citas (actualizada)
 -- ============================================================

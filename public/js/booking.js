@@ -231,15 +231,36 @@
     return ids;
   }
 
-  function serviceTotals() {
-    var totalPrice = 0, totalDur = 0, hasFrom = false, count = 0;
-    $('.tf-service-input:checked').each(function () {
-      totalPrice += parseFloat($(this).data('price')) || 0;
-      totalDur   += parseInt($(this).data('duration'), 10) || 0;
-      if (String($(this).data('from')) === '1') hasFrom = true;
-      count++;
+  // Duración total según reglas por combinación (espejo del backend).
+  function computeDuration(list) {
+    var hasCorte = false, corteTime = 0, beards = 0, deps = 0, big = false, sumAll = 0;
+    list.forEach(function (s) {
+      var cat = s.category || '', name = (s.name || '').toLowerCase(), dur = parseInt(s.duration, 10) || 0;
+      sumAll += dur;
+      if (cat === 'corte') { hasCorte = true; corteTime += dur; }
+      else if (cat === 'barba') { beards++; }
+      else if (cat === 'depilacion') { deps++; }
+      else if (cat === 'tratamiento') { if (name.indexOf('fantas') > -1 || name.indexOf('mecha') > -1) big = true; }
     });
-    return { price: totalPrice, duration: totalDur, from: hasFrom, count: count };
+    if (!hasCorte) return sumAll;
+    var block = corteTime;
+    if (beards > 0) block = 40;
+    if (big) block = Math.max(block, 60);
+    block += 10 * deps;
+    return block;
+  }
+
+  function serviceTotals() {
+    var ids = selectedServiceIds();
+    var totalPrice = 0, hasFrom = false, list = [];
+    ids.forEach(function (id) {
+      var s = servicesById[id];
+      if (!s) return;
+      totalPrice += parseFloat(s.price) || 0;
+      if (s.price_from) hasFrom = true;
+      list.push(s);
+    });
+    return { price: totalPrice, duration: computeDuration(list), from: hasFrom, count: ids.length };
   }
 
   function updateEstimate() {

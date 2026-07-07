@@ -572,25 +572,70 @@ class Six40_Booking_API {
 	}
 
 	/**
-	 * Calculate total duration for a set of services.
+	 * Calcula la duración total según reglas por combinación:
+	 *  - Barbas: 20 min c/u.  Depilación: 10 min c/u.
+	 *  - Corte solo: su duración base (Corte/Niño 30, Rapado 20).
+	 *  - Corte + cualquier barba → 40 min.
+	 *  - Corte + (color barba / reducción canas / iluminaciones) → sin sumar (solo el corte).
+	 *  - Corte + (color fantasía / mechas) → 60 min.  Combos raros: el mayor.
+	 *  - Sin corte: suma de duraciones base de los servicios elegidos.
 	 *
-	 * @param array $service_ids Service IDs (first = base, rest = additional)
-	 * @return int Duration in minutes
+	 * @param array $service_ids Service IDs
+	 * @return int Duración en minutos
 	 */
 	private function calculate_service_duration( $service_ids ) {
 		if ( empty( $service_ids ) ) {
 			return 0;
 		}
 
-		$total = 0;
+		$has_corte = false;
+		$corte_time = 0;
+		$beards = 0;
+		$deps = 0;
+		$big_treat = false; // color fantasía o mechas
+		$sum_all = 0;
+
 		foreach ( $service_ids as $svc_id ) {
-			$service = $this->get_service( $svc_id );
-			if ( $service ) {
-				$total += (int) $service['duration'];
+			$s = $this->get_service( $svc_id );
+			if ( ! $s ) {
+				continue;
+			}
+			$cat  = $s['category'] ?? '';
+			$name = function_exists( 'mb_strtolower' ) ? mb_strtolower( $s['name'] ?? '' ) : strtolower( $s['name'] ?? '' );
+			$dur  = (int) ( $s['duration'] ?? 0 );
+			$sum_all += $dur;
+
+			if ( $cat === 'corte' ) {
+				$has_corte = true;
+				$corte_time += $dur;
+			} elseif ( $cat === 'barba' ) {
+				$beards++;
+			} elseif ( $cat === 'depilacion' ) {
+				$deps++;
+			} elseif ( $cat === 'tratamiento' ) {
+				if ( strpos( $name, 'fantas' ) !== false || strpos( $name, 'mecha' ) !== false ) {
+					$big_treat = true;
+				}
 			}
 		}
 
-		return $total;
+		// Sin corte: suma simple de duraciones base.
+		if ( ! $has_corte ) {
+			return $sum_all;
+		}
+
+		// Con corte: reglas por combinación.
+		$block = $corte_time;
+		if ( $beards > 0 ) {
+			$block = 40;                    // corte + cualquier barba
+		}
+		if ( $big_treat ) {
+			$block = max( $block, 60 );      // corte + fantasía/mechas (el mayor si hay más)
+		}
+		// color barba / reducción canas / iluminaciones con corte: no suman.
+		$block += 10 * $deps;               // depilación: 10 min cada una
+
+		return $block;
 	}
 
 	/**

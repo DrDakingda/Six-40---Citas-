@@ -3,7 +3,7 @@
  * Plugin Name: Six40 Booking System
  * Plugin URI:  https://six40.katibu.es/
  * Description: Sistema de citas para Sixcuarenta 640 Barbería (Málaga y Torremolinos).
- * Version:     1.5.2
+ * Version:     1.6.0
  * Author:      Katibu
  * Author URI:  https://katibu.es/
  * License:     GPL-2.0+
@@ -13,7 +13,7 @@
 defined( 'ABSPATH' ) || exit;
 
 // ── Constants ──────────────────────────────────────────────────────────────────
-define( 'SIX40_VERSION',    '1.5.2' );
+define( 'SIX40_VERSION',    '1.6.0' );
 define( 'SIX40_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'SIX40_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 define( 'SIX40_PLUGIN_FILE', __FILE__ );
@@ -144,6 +144,7 @@ function six40_ajax_get_services() {
         $grouped[ $cat ]['items'][] = [
             'id'         => (int) $svc['id'],
             'name'       => $svc['name'] ?? '',
+            'category'   => $cat,
             'duration'   => (int) ( $svc['duration'] ?? 0 ),
             'price'      => isset( $svc['price'] ) ? (float) $svc['price'] : null,
             'price_from' => ! empty( $svc['price_from'] ),
