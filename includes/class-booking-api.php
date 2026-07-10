@@ -638,7 +638,7 @@ class Six40_Booking_API {
 
 	/**
 	 * Calcula la duración total según reglas por combinación:
-	 *  - Barbas: 20 min c/u.  Depilación: 10 min c/u.
+	 *  - Barbas: 20 min c/u.
 	 *  - Corte solo: su duración base (Corte/Niño 30, Rapado 20).
 	 *  - Corte + cualquier barba → 40 min.
 	 *  - Corte + (color barba / reducción canas / iluminaciones) → sin sumar (solo el corte).
@@ -656,7 +656,6 @@ class Six40_Booking_API {
 		$has_corte = false;
 		$corte_time = 0;
 		$beards = 0;
-		$deps = 0;
 		$big_treat = false; // color fantasía o mechas
 		$sum_all = 0;
 
@@ -675,8 +674,6 @@ class Six40_Booking_API {
 				$corte_time += $dur;
 			} elseif ( $cat === 'barba' ) {
 				$beards++;
-			} elseif ( $cat === 'depilacion' ) {
-				$deps++;
 			} elseif ( $cat === 'tratamiento' ) {
 				if ( strpos( $name, 'fantas' ) !== false || strpos( $name, 'mecha' ) !== false ) {
 					$big_treat = true;
@@ -698,7 +695,6 @@ class Six40_Booking_API {
 			$block = max( $block, 60 );      // corte + fantasía/mechas (el mayor si hay más)
 		}
 		// color barba / reducción canas / iluminaciones con corte: no suman.
-		$block += 10 * $deps;               // depilación: 10 min cada una
 
 		return $block;
 	}

@@ -147,9 +147,6 @@ INSERT INTO public.services (id, name, duration, type, category, location, price
   (4,  'Arreglo de barba a máquina',15, 'base',       'barba',       'malaga',  8.00, false, 10),
   (5,  'Arreglo de barba a navaja', 20, 'base',       'barba',       'malaga', 10.00, false, 11),
   (6,  'Afeitado',                  30, 'base',       'barba',       'malaga', 12.00, false, 12),
-  (7,  'Depilación cejas',          10, 'additional', 'depilacion',  'malaga',  4.00, false, 20),
-  (8,  'Cejas + 1 zona',            15, 'additional', 'depilacion',  'malaga',  6.00, false, 21),
-  (9,  'Depilación completa',       20, 'additional', 'depilacion',  'malaga',  8.00, false, 22),
   (10, 'Color barba',               20, 'additional', 'tratamiento', 'malaga',  8.00, false, 30),
   (11, 'Reducción de canas',        30, 'additional', 'tratamiento', 'malaga', 12.00, false, 31),
   (12, 'Color fantasía',            90, 'additional', 'tratamiento', 'malaga', 25.00, true,  32),
@@ -169,10 +166,9 @@ INSERT INTO public.services (id, name, duration, type, category, location, price
   (30, 'Iluminaciones',             30, 'additional', 'tratamiento', 'torremolinos', 12.00, false, 34)
 ON CONFLICT DO NOTHING;
 
--- Duraciones base normalizadas: barbas 20 min, depilación 10 min c/u.
+-- Duraciones base normalizadas: barbas 20 min.
 -- (Las combinaciones corte+barba=40, corte+mechas=60, etc. las calcula el plugin.)
 UPDATE public.services SET duration = 20 WHERE category = 'barba';
-UPDATE public.services SET duration = 10 WHERE category = 'depilacion';
 
 -- ============================================================
 -- 4. TABLA: Citas (actualizada)

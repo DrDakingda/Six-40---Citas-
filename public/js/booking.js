@@ -233,20 +233,18 @@
 
   // Duración total según reglas por combinación (espejo del backend).
   function computeDuration(list) {
-    var hasCorte = false, corteTime = 0, beards = 0, deps = 0, big = false, sumAll = 0;
+    var hasCorte = false, corteTime = 0, beards = 0, big = false, sumAll = 0;
     list.forEach(function (s) {
       var cat = s.category || '', name = (s.name || '').toLowerCase(), dur = parseInt(s.duration, 10) || 0;
       sumAll += dur;
       if (cat === 'corte') { hasCorte = true; corteTime += dur; }
       else if (cat === 'barba') { beards++; }
-      else if (cat === 'depilacion') { deps++; }
       else if (cat === 'tratamiento') { if (name.indexOf('fantas') > -1 || name.indexOf('mecha') > -1) big = true; }
     });
     if (!hasCorte) return sumAll;
     var block = corteTime;
     if (beards > 0) block = 40;
     if (big) block = Math.max(block, 60);
-    block += 10 * deps;
     return block;
   }
 

@@ -19,7 +19,7 @@ DELETE FROM public.appointment_services;
 DELETE FROM public.services;
 
 -- 4. Recargar servicios POR LOCAL con precios y categorías
---    category: 'corte' | 'barba' | 'depilacion' | 'tratamiento'
+--    category: 'corte' | 'barba' | 'tratamiento'
 --    type se mantiene por compatibilidad (base/additional) pero el formulario
 --    usa 'menú libre': el cliente elige cualquier combinación (mínimo 1).
 INSERT INTO public.services (id, name, duration, type, category, location, price, price_from, display_order) VALUES
@@ -32,10 +32,6 @@ INSERT INTO public.services (id, name, duration, type, category, location, price
   (4,  'Arreglo de barba a máquina',15, 'base',       'barba',        'malaga',  8.00, false, 10),
   (5,  'Arreglo de barba a navaja', 20, 'base',       'barba',        'malaga', 10.00, false, 11),
   (6,  'Afeitado',                  30, 'base',       'barba',        'malaga', 12.00, false, 12),
-  -- Depilación
-  (7,  'Depilación cejas',          10, 'additional', 'depilacion',   'malaga',  4.00, false, 20),
-  (8,  'Cejas + 1 zona',            15, 'additional', 'depilacion',   'malaga',  6.00, false, 21),
-  (9,  'Depilación completa',       20, 'additional', 'depilacion',   'malaga',  8.00, false, 22),
   -- Tratamientos
   (10, 'Color barba',               20, 'additional', 'tratamiento',  'malaga',  8.00, false, 30),
   (11, 'Reducción de canas',        30, 'additional', 'tratamiento',  'malaga', 12.00, false, 31),

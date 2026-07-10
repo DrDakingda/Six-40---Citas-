@@ -8,6 +8,3 @@
 
 -- Todas las barbas: 20 min
 UPDATE public.services SET duration = 20 WHERE category = 'barba';
-
--- Toda la depilación: 10 min cada una
-UPDATE public.services SET duration = 10 WHERE category = 'depilacion';
