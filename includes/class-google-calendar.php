@@ -76,17 +76,22 @@ class Six40_Google_Calendar {
 
         $barber_name = is_array( $appointment['barber'] ?? null ) ? $appointment['barber']['name'] ?? '' : ( $appointment['barber_name'] ?? '' );
 
+        $description = sprintf(
+            "Cliente: %s\nTeléfono: %s\nEmail: %s\nServicios: %s\nDuración: %d min\nBarbero: %s",
+            $appointment['customer_name'] ?? '',
+            $appointment['customer_phone'] ?? '',
+            $appointment['customer_email'] ?? '',
+            $service_label,
+            $appointment['duration'] ?? 0,
+            $barber_name
+        );
+        if ( ! empty( $appointment['manage_token'] ) && class_exists( 'Six40_Manage' ) ) {
+            $description .= "\n\nCancelar o cambiar la cita:\n" . Six40_Manage::url( $appointment['manage_token'] );
+        }
+
         $event = [
             'summary'     => sprintf( '%s — %s', $service_label, $appointment['customer_name'] ?? '' ),
-            'description' => sprintf(
-                "Cliente: %s\nTeléfono: %s\nEmail: %s\nServicios: %s\nDuración: %d min\nBarbero: %s",
-                $appointment['customer_name'] ?? '',
-                $appointment['customer_phone'] ?? '',
-                $appointment['customer_email'] ?? '',
-                $service_label,
-                $appointment['duration'] ?? 0,
-                $barber_name
-            ),
+            'description' => $description,
             'start' => [ 'dateTime' => "{$date}T{$time_start}:00", 'timeZone' => 'Europe/Madrid' ],
             'end'   => [ 'dateTime' => "{$date}T{$time_end}:00",   'timeZone' => 'Europe/Madrid' ],
             'reminders' => [
@@ -180,6 +185,69 @@ class Six40_Google_Calendar {
         $data   = json_decode( wp_remote_retrieve_body( $response ), true );
         $status = $data['status'] ?? '';
         return ( 'cancelled' === $status ) ? 'cancelled' : 'active';
+    }
+
+    /**
+     * Borra un evento del calendario.
+     *
+     * @return bool|WP_Error true si se borró (o ya no existía).
+     */
+    public function delete_event( $calendar_id, $event_id ) {
+        if ( ! $calendar_id || ! $event_id ) {
+            return false;
+        }
+        $token = $this->get_access_token();
+        if ( is_wp_error( $token ) ) {
+            return $token;
+        }
+        $url = 'https://www.googleapis.com/calendar/v3/calendars/' . rawurlencode( $calendar_id )
+             . '/events/' . rawurlencode( $event_id );
+        $response = wp_remote_request( $url, [
+            'method'  => 'DELETE',
+            'headers' => [ 'Authorization' => 'Bearer ' . $token ],
+            'timeout' => 15,
+        ] );
+        if ( is_wp_error( $response ) ) {
+            return $response;
+        }
+        $code = wp_remote_retrieve_response_code( $response );
+        return ( $code < 400 || 404 === $code || 410 === $code );
+    }
+
+    /**
+     * Cambia la fecha/hora de un evento.
+     *
+     * @return bool|WP_Error
+     */
+    public function update_event_time( $calendar_id, $event_id, $date, $start, $end ) {
+        if ( ! $calendar_id || ! $event_id ) {
+            return false;
+        }
+        $token = $this->get_access_token();
+        if ( is_wp_error( $token ) ) {
+            return $token;
+        }
+        $start = substr( (string) $start, 0, 5 );
+        $end   = substr( (string) $end, 0, 5 );
+        $body  = [
+            'start' => [ 'dateTime' => "{$date}T{$start}:00", 'timeZone' => 'Europe/Madrid' ],
+            'end'   => [ 'dateTime' => "{$date}T{$end}:00",   'timeZone' => 'Europe/Madrid' ],
+        ];
+        $url = 'https://www.googleapis.com/calendar/v3/calendars/' . rawurlencode( $calendar_id )
+             . '/events/' . rawurlencode( $event_id );
+        $response = wp_remote_request( $url, [
+            'method'  => 'PATCH',
+            'headers' => [
+                'Authorization' => 'Bearer ' . $token,
+                'Content-Type'  => 'application/json',
+            ],
+            'body'    => wp_json_encode( $body ),
+            'timeout' => 15,
+        ] );
+        if ( is_wp_error( $response ) ) {
+            return $response;
+        }
+        return wp_remote_retrieve_response_code( $response ) < 400;
     }
 
     /**

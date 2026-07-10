@@ -390,6 +390,7 @@ class Six40_Booking_API {
 			'customer_email'  => $data['customer_email'] ?? '',
 			'customer_phone'  => $data['customer_phone'] ?? '',
 			'status'          => 'confirmed',
+			'manage_token'    => wp_generate_password( 24, false ), // enlace de gestión
 		];
 
 		$result = $this->supabase_request( 'POST', 'appointments', $appt_data );
@@ -515,6 +516,86 @@ class Six40_Booking_API {
 			'order'           => 'date.asc',
 		] );
 		return is_wp_error( $r ) ? [] : (array) $r;
+	}
+
+	/**
+	 * Busca una cita por su token de gestión (con servicios embebidos).
+	 *
+	 * @param string $token
+	 * @return array|null
+	 */
+	public function get_appointment_by_token( $token ) {
+		$token = trim( (string) $token );
+		if ( $token === '' ) {
+			return null;
+		}
+		$r = $this->supabase_request( 'GET', 'appointments', [], [
+			'select'       => '*,appointment_services(service_id,services(name))',
+			'manage_token' => 'eq.' . $token,
+			'limit'        => 1,
+		] );
+		if ( is_wp_error( $r ) || empty( $r ) ) {
+			return null;
+		}
+		$appt = $r[0];
+		$appt['services_label'] = $this->build_services_label( $appt );
+		return $appt;
+	}
+
+	/**
+	 * IDs de servicio de una cita (desde los servicios embebidos).
+	 *
+	 * @param array $appointment
+	 * @return array
+	 */
+	public function appointment_service_ids( $appointment ) {
+		$ids = [];
+		foreach ( (array) ( $appointment['appointment_services'] ?? [] ) as $as ) {
+			if ( ! empty( $as['service_id'] ) ) {
+				$ids[] = (int) $as['service_id'];
+			}
+		}
+		return $ids;
+	}
+
+	/**
+	 * Reprograma una cita a nueva fecha/hora (mismo barbero/servicios), validando
+	 * que el hueco esté libre.
+	 *
+	 * @return array|WP_Error  [ 'end_time' => 'HH:MM' ] en éxito
+	 */
+	public function reschedule_appointment( $appointment, $new_date, $new_start ) {
+		$service_ids = $this->appointment_service_ids( $appointment );
+		if ( empty( $service_ids ) ) {
+			return new WP_Error( 'no_services', 'La cita no tiene servicios.' );
+		}
+		if ( ! preg_match( '/^\d{4}-\d{2}-\d{2}$/', $new_date ) || ! preg_match( '/^\d{2}:\d{2}$/', $new_start ) ) {
+			return new WP_Error( 'bad_input', 'Fecha u hora no válidas.' );
+		}
+
+		$location  = $appointment['location'] ?? '';
+		$barber_id = (int) ( $appointment['barber_id'] ?? 0 );
+
+		$slots = $this->get_available_slots( $location, $new_date, $service_ids, $barber_id );
+		if ( is_wp_error( $slots ) ) {
+			return $slots;
+		}
+		if ( ! in_array( $new_start, (array) $slots, true ) ) {
+			return new WP_Error( 'slot_unavailable', 'Esa hora ya no está disponible.' );
+		}
+
+		$duration = $this->calculate_service_duration( $service_ids );
+		$end      = $this->calculate_end_time( $new_start, $duration );
+
+		$res = $this->supabase_request( 'PATCH', 'appointments?id=eq.' . intval( $appointment['id'] ), [
+			'date'       => $new_date,
+			'start_time' => $new_start,
+			'end_time'   => $end,
+		] );
+		if ( is_wp_error( $res ) ) {
+			return $res;
+		}
+		return [ 'end_time' => $end, 'duration' => $duration ];
 	}
 
 	// ── Public: Barber Days Off ───────────────────────────────────────────────

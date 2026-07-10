@@ -3,7 +3,7 @@
  * Plugin Name: Six40 Booking System
  * Plugin URI:  https://six40.katibu.es/
  * Description: Sistema de citas para Sixcuarenta 640 Barbería (Málaga y Torremolinos).
- * Version:     1.9.2
+ * Version:     1.10.0
  * Author:      Katibu
  * Author URI:  https://katibu.es/
  * License:     GPL-2.0+
@@ -13,7 +13,7 @@
 defined( 'ABSPATH' ) || exit;
 
 // ── Constants ──────────────────────────────────────────────────────────────────
-define( 'SIX40_VERSION',    '1.9.2' );
+define( 'SIX40_VERSION',    '1.10.0' );
 define( 'SIX40_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'SIX40_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 define( 'SIX40_PLUGIN_FILE', __FILE__ );
@@ -23,7 +23,11 @@ require_once SIX40_PLUGIN_DIR . 'includes/class-booking-api.php';
 require_once SIX40_PLUGIN_DIR . 'includes/class-google-calendar.php';
 require_once SIX40_PLUGIN_DIR . 'includes/class-email.php';
 require_once SIX40_PLUGIN_DIR . 'includes/class-admin-panel.php';
+require_once SIX40_PLUGIN_DIR . 'includes/class-manage.php';
 require_once SIX40_PLUGIN_DIR . 'assets/shortcode.php';
+
+// Gestión de cita por el cliente (cancelar/modificar por enlace con token).
+Six40_Manage::init();
 
 // Carga configuración local si existe (nunca va a git).
 if ( file_exists( SIX40_PLUGIN_DIR . 'six40-config.php' ) ) {

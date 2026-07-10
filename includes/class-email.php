@@ -39,6 +39,7 @@ class Six40_Email {
             'time_fmt'       => substr( $appointment['start_time'] ?? '', 0, 5 ),
             'barber_name'    => is_array( $appointment['barber'] ?? null ) ? $appointment['barber']['name'] ?? '' : ( $appointment['barber_name'] ?? '' ),
             'duration'       => $appointment['duration'] ?? 0,
+            'manage_url'     => ( ! empty( $appointment['manage_token'] ) && class_exists( 'Six40_Manage' ) ) ? Six40_Manage::url( $appointment['manage_token'] ) : '',
         ];
 
         return $this->send(
@@ -129,9 +130,15 @@ class Six40_Email {
             </table>
           </td></tr>
         </table>
+        <?php if ( ! empty( $d['manage_url'] ) ) : ?>
+        <table width="100%" cellpadding="0" cellspacing="0" style="margin:28px 0 0;"><tr><td align="center">
+          <a href="<?= esc_url( $d['manage_url'] ) ?>" style="display:inline-block;background:#b11a2d;color:#ffffff;text-decoration:none;font-size:14px;font-weight:700;padding:12px 24px;border-radius:8px;">Cancelar o cambiar tu cita</a>
+        </td></tr></table>
+        <?php else : ?>
         <p style="color:#aaa;font-size:13px;margin:28px 0 0;line-height:1.6;">
           ¿Necesitas cancelar o cambiar tu cita? Responde a este email y te ayudamos.
         </p>
+        <?php endif; ?>
       </td></tr>
       <tr><td style="background:#000000;padding:20px 40px;text-align:center;">
         <p style="color:#555;font-size:12px;margin:0;">© <?= date('Y') ?> Six40 Barbería · Málaga &amp; Torremolinos</p>
