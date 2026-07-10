@@ -494,11 +494,15 @@ class Six40_Booking_API {
 	 *
 	 * @return array|WP_Error
 	 */
-	public function set_appointment_google_event( $id, $event_id, $calendar_id ) {
-		return $this->supabase_request( 'PATCH', 'appointments?id=eq.' . intval( $id ), [
+	public function set_appointment_google_event( $id, $event_id, $calendar_id, $events = null ) {
+		$patch = [
 			'google_event_id'    => (string) $event_id,
 			'google_calendar_id' => (string) $calendar_id,
-		] );
+		];
+		if ( is_array( $events ) ) {
+			$patch['google_events'] = wp_json_encode( $events );
+		}
+		return $this->supabase_request( 'PATCH', 'appointments?id=eq.' . intval( $id ), $patch );
 	}
 
 	/**
@@ -509,7 +513,7 @@ class Six40_Booking_API {
 	 */
 	public function get_appointments_to_check() {
 		$r = $this->supabase_request( 'GET', 'appointments', [], [
-			'select'          => 'id,customer_name,customer_email,customer_phone,location,date,start_time,end_time,barber_id,google_event_id,google_calendar_id',
+			'select'          => 'id,customer_name,customer_email,customer_phone,location,date,start_time,end_time,barber_id,google_event_id,google_calendar_id,google_events',
 			'status'          => 'eq.confirmed',
 			'date'            => 'gte.' . wp_date( 'Y-m-d' ),
 			'google_event_id' => 'not.is.null',

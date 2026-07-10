@@ -105,7 +105,7 @@ class Six40_Google_Calendar {
 
         $ok         = false;
         $last_error = null;
-        $primary    = null; // { event_id, calendar_id } del calendario del barbero (idx 0)
+        $all        = []; // todos los eventos creados: [ { event_id, calendar_id }, ... ]
         foreach ( $targets as $idx => $cid ) {
             // El cliente se añade como invitado SOLO en el primer calendario
             // (el del barbero), para que reciba una única invitación.
@@ -136,19 +136,22 @@ class Six40_Google_Calendar {
                 $last_error = new WP_Error( 'calendar_error', $err['error']['message'] ?? "HTTP $code" );
                 continue;
             }
-            // Guardamos el id del evento del calendario del barbero (idx 0) para
-            // poder detectar después si lo anulan.
-            if ( $idx === 0 ) {
-                $data = json_decode( wp_remote_retrieve_body( $response ), true );
-                $primary = [ 'event_id' => $data['id'] ?? '', 'calendar_id' => $cid ];
-            }
+            $data = json_decode( wp_remote_retrieve_body( $response ), true );
+            $all[] = [ 'event_id' => $data['id'] ?? '', 'calendar_id' => $cid ];
             $ok = true;
         }
 
         if ( ! $ok && $last_error ) {
             return $last_error;
         }
-        return $primary ?: true;
+        // El primero (idx 0) es el del barbero: se usa para detectar anulaciones.
+        // 'events' lleva todos (barbero + local) para sincronizar cancelar/mover.
+        $primary = $all[0] ?? [ 'event_id' => '', 'calendar_id' => '' ];
+        return [
+            'event_id'    => $primary['event_id'],
+            'calendar_id' => $primary['calendar_id'],
+            'events'      => $all,
+        ];
     }
 
     /**

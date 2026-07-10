@@ -3,7 +3,7 @@
  * Plugin Name: Six40 Booking System
  * Plugin URI:  https://six40.katibu.es/
  * Description: Sistema de citas para Sixcuarenta 640 Barbería (Málaga y Torremolinos).
- * Version:     1.10.0
+ * Version:     1.10.1
  * Author:      Katibu
  * Author URI:  https://katibu.es/
  * License:     GPL-2.0+
@@ -13,7 +13,7 @@
 defined( 'ABSPATH' ) || exit;
 
 // ── Constants ──────────────────────────────────────────────────────────────────
-define( 'SIX40_VERSION',    '1.10.0' );
+define( 'SIX40_VERSION',    '1.10.1' );
 define( 'SIX40_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'SIX40_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 define( 'SIX40_PLUGIN_FILE', __FILE__ );
@@ -83,6 +83,15 @@ function six40_cron_check_cancellations() {
         if ( 'cancelled' === $status || 'deleted' === $status ) {
             $res = $api->update_appointment_status( $a['id'], 'cancelled' );
             if ( ! is_wp_error( $res ) ) {
+                // Sincronizar: borrar el resto de eventos (p. ej. el del local).
+                $events = json_decode( $a['google_events'] ?? '', true );
+                if ( is_array( $events ) ) {
+                    foreach ( $events as $ev ) {
+                        if ( ! empty( $ev['calendar_id'] ) && ! empty( $ev['event_id'] ) ) {
+                            $gc->delete_event( $ev['calendar_id'], $ev['event_id'] );
+                        }
+                    }
+                }
                 ( new Six40_Email() )->send_cancellation( $a );
             }
         }
@@ -269,8 +278,9 @@ function six40_ajax_submit_booking() {
     if ( is_wp_error( $gc ) ) {
         error_log( 'Six40 Google Calendar: ' . $gc->get_error_message() );
     } elseif ( is_array( $gc ) && ! empty( $gc['event_id'] ) && ! empty( $result['id'] ) ) {
-        // Guardamos el evento para poder detectar anulaciones desde Google.
-        $api->set_appointment_google_event( $result['id'], $gc['event_id'], $gc['calendar_id'] ?? '' );
+        // Guardamos el evento (barbero) para detectar anulaciones y todos los
+        // eventos (barbero + local) para sincronizar cancelar/mover.
+        $api->set_appointment_google_event( $result['id'], $gc['event_id'], $gc['calendar_id'] ?? '', $gc['events'] ?? null );
     }
     $em = ( new Six40_Email() )->send_confirmation( $result );
     if ( is_wp_error( $em ) ) {

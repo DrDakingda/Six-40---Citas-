@@ -188,6 +188,7 @@ CREATE TABLE IF NOT EXISTS public.appointments (
   notes           TEXT,
   google_event_id    TEXT,   -- evento en el calendario del barbero (para detectar anulaciones)
   google_calendar_id TEXT,
+  google_events      TEXT,   -- JSON con todos los eventos (barbero + local) para sincronizar
   manage_token       TEXT,   -- token para el enlace de gestión (cancelar/modificar)
   created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()

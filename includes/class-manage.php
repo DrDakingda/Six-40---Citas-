@@ -30,6 +30,19 @@ class Six40_Manage {
             && ( $appt['date'] ?? '' ) >= wp_date( 'Y-m-d' );
     }
 
+    /** Todos los eventos de Google de la cita (barbero + local). */
+    private static function events_of( $appt ) {
+        $list = json_decode( $appt['google_events'] ?? '', true );
+        if ( is_array( $list ) && $list ) {
+            return $list;
+        }
+        // Compat citas antiguas: solo el evento del barbero.
+        if ( ! empty( $appt['google_event_id'] ) && ! empty( $appt['google_calendar_id'] ) ) {
+            return [ [ 'event_id' => $appt['google_event_id'], 'calendar_id' => $appt['google_calendar_id'] ] ];
+        }
+        return [];
+    }
+
     private static function fmt_date( $d ) {
         if ( ! $d ) return '';
         $dias   = [ 'Monday'=>'lunes','Tuesday'=>'martes','Wednesday'=>'miércoles','Thursday'=>'jueves','Friday'=>'viernes','Saturday'=>'sábado','Sunday'=>'domingo' ];
@@ -234,8 +247,11 @@ class Six40_Manage {
         if ( is_wp_error( $res ) ) {
             wp_send_json_error( [ 'message' => $res->get_error_message() ] );
         }
-        if ( ! empty( $appt['google_calendar_id'] ) && ! empty( $appt['google_event_id'] ) ) {
-            ( new Six40_Google_Calendar() )->delete_event( $appt['google_calendar_id'], $appt['google_event_id'] );
+        $gcal = new Six40_Google_Calendar();
+        foreach ( self::events_of( $appt ) as $ev ) {
+            if ( ! empty( $ev['calendar_id'] ) && ! empty( $ev['event_id'] ) ) {
+                $gcal->delete_event( $ev['calendar_id'], $ev['event_id'] );
+            }
         }
         ( new Six40_Email() )->send_cancellation( $appt );
         wp_send_json_success( [ 'message' => 'Tu cita ha sido cancelada. ¡Gracias por avisar!' ] );
@@ -255,9 +271,12 @@ class Six40_Manage {
         if ( is_wp_error( $r ) ) {
             wp_send_json_error( [ 'message' => $r->get_error_message() ] );
         }
-        // Mover el evento de Google.
-        if ( ! empty( $appt['google_calendar_id'] ) && ! empty( $appt['google_event_id'] ) ) {
-            ( new Six40_Google_Calendar() )->update_event_time( $appt['google_calendar_id'], $appt['google_event_id'], $date, $start, $r['end_time'] );
+        // Mover todos los eventos de Google (barbero + local).
+        $gcal = new Six40_Google_Calendar();
+        foreach ( self::events_of( $appt ) as $ev ) {
+            if ( ! empty( $ev['calendar_id'] ) && ! empty( $ev['event_id'] ) ) {
+                $gcal->update_event_time( $ev['calendar_id'], $ev['event_id'], $date, $start, $r['end_time'] );
+            }
         }
         // Email con los nuevos datos.
         $svcs = [];
