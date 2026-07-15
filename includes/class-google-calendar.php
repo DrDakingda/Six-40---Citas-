@@ -227,6 +227,72 @@ class Six40_Google_Calendar {
     }
 
     /**
+     * Eventos de varios calendarios en un rango (con título e id), para mostrarlos
+     * en el calendario del panel de administración.
+     *
+     * @param array  $calendar_ids
+     * @param string $time_min  fecha/hora ISO
+     * @param string $time_max  fecha/hora ISO
+     * @return array [ ['calendar_id','id','summary','start','end','all_day'], ... ]
+     */
+    public function get_events_range( $calendar_ids, $time_min, $time_max ) {
+        $calendar_ids = array_values( array_filter( array_unique( (array) $calendar_ids ) ) );
+        if ( empty( $calendar_ids ) || ! $time_min || ! $time_max ) {
+            return [];
+        }
+        $token = $this->get_access_token();
+        if ( is_wp_error( $token ) ) {
+            return [];
+        }
+
+        $tz = new \DateTimeZone( 'Europe/Madrid' );
+        try {
+            $min = new \DateTime( $time_min, $tz );
+            $max = new \DateTime( $time_max, $tz );
+        } catch ( \Exception $e ) {
+            return [];
+        }
+
+        $out = [];
+        foreach ( $calendar_ids as $cid ) {
+            $url = 'https://www.googleapis.com/calendar/v3/calendars/' . rawurlencode( $cid ) . '/events?' . http_build_query( [
+                'timeMin'      => $min->format( \DateTime::RFC3339 ),
+                'timeMax'      => $max->format( \DateTime::RFC3339 ),
+                'singleEvents' => 'true',
+                'orderBy'      => 'startTime',
+                'maxResults'   => 250,
+            ] );
+            $response = wp_remote_get( $url, [
+                'headers' => [ 'Authorization' => 'Bearer ' . $token ],
+                'timeout' => 20,
+            ] );
+            if ( is_wp_error( $response ) || wp_remote_retrieve_response_code( $response ) >= 400 ) {
+                continue;
+            }
+            $data = json_decode( wp_remote_retrieve_body( $response ), true );
+            foreach ( (array) ( $data['items'] ?? [] ) as $it ) {
+                if ( ( $it['status'] ?? '' ) === 'cancelled' ) {
+                    continue;
+                }
+                $start = $it['start']['dateTime'] ?? ( $it['start']['date'] ?? '' );
+                $end   = $it['end']['dateTime']   ?? ( $it['end']['date']   ?? '' );
+                if ( ! $start ) {
+                    continue;
+                }
+                $out[] = [
+                    'calendar_id' => $cid,
+                    'id'          => $it['id'] ?? '',
+                    'summary'     => $it['summary'] ?? '',
+                    'start'       => $start,
+                    'end'         => $end,
+                    'all_day'     => empty( $it['start']['dateTime'] ),
+                ];
+            }
+        }
+        return $out;
+    }
+
+    /**
      * Estado de un evento en Google Calendar: 'active' | 'cancelled' | 'deleted' | null (error/skip).
      *
      * @param string $calendar_id

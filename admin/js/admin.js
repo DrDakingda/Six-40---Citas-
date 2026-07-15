@@ -124,6 +124,10 @@
       height: 'auto', events: fetchEvents,
       eventClick: function(info) {
         var p = info.event.extendedProps;
+        if (p.status === 'google') {
+          alert(info.event.title + '\n\n(Evento de Google Calendar — no es una cita de la web)');
+          return;
+        }
         alert('Cliente: '+info.event.title+'\nLocal: '+p.location+'\nEstado: '+p.status+'\nEmail: '+p.email);
       }
     });
@@ -132,7 +136,11 @@
 
   function fetchEvents(info, ok, fail) {
     var loc = $('#six40-calendar-location').val()||'';
-    $.get(six40Admin.ajaxUrl, { action:'six40_get_appointments_json', nonce:six40Admin.nonce, location:loc }, function(res){
+    $.get(six40Admin.ajaxUrl, {
+      action: 'six40_get_appointments_json', nonce: six40Admin.nonce, location: loc,
+      // Rango visible: para traer también los eventos de Google de esos días.
+      start: (info && info.startStr) || '', end: (info && info.endStr) || ''
+    }, function(res){
       res.success ? ok(res.data) : fail(res.data);
     }).fail(fail);
   }

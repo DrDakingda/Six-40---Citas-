@@ -351,6 +351,85 @@ class Six40_Admin_Panel {
             ];
         }
 
+        // ── Eventos que vienen de Google Calendar (los que mete el barbero a mano)
+        // Se muestran también, para que el panel refleje la agenda real.
+        $events = array_merge( $events, self::google_events( $api, $appointments, $location ) );
+
         wp_send_json_success( $events );
+    }
+
+    /**
+     * Eventos de los Google Calendar de los barberos en el rango visible, quitando
+     * los que ya son citas de la plataforma (evita duplicados).
+     */
+    private static function google_events( $api, $appointments, $location ) {
+        $from = sanitize_text_field( $_GET['start'] ?? '' );
+        $to   = sanitize_text_field( $_GET['end'] ?? '' );
+        if ( ! $from || ! $to ) {
+            return [];
+        }
+
+        $cal_map = (array) get_option( 'six40_barber_calendars', [] );
+        if ( empty( $cal_map ) ) {
+            return [];
+        }
+
+        $barbers = $api->get_barbers( $location ?: null );
+        if ( is_wp_error( $barbers ) || empty( $barbers ) ) {
+            return [];
+        }
+
+        $cal_ids   = [];
+        $cal_names = [];
+        foreach ( $barbers as $b ) {
+            $cid = trim( (string) ( $cal_map[ (int) $b['id'] ] ?? '' ) );
+            if ( $cid !== '' ) {
+                $cal_ids[]         = $cid;
+                $cal_names[ $cid ] = $b['name'] ?? '';
+            }
+        }
+        if ( empty( $cal_ids ) ) {
+            return [];
+        }
+
+        // Ids de eventos que ya son citas nuestras → no duplicarlos.
+        $known = [];
+        foreach ( (array) $appointments as $a ) {
+            if ( ! empty( $a['google_event_id'] ) ) {
+                $known[ $a['google_event_id'] ] = true;
+            }
+            $evs = json_decode( $a['google_events'] ?? '', true );
+            if ( is_array( $evs ) ) {
+                foreach ( $evs as $e ) {
+                    if ( ! empty( $e['event_id'] ) ) {
+                        $known[ $e['event_id'] ] = true;
+                    }
+                }
+            }
+        }
+
+        $out = [];
+        foreach ( ( new Six40_Google_Calendar() )->get_events_range( $cal_ids, $from, $to ) as $ge ) {
+            if ( ! empty( $ge['id'] ) && isset( $known[ $ge['id'] ] ) ) {
+                continue; // ya está como cita de la plataforma
+            }
+            $who   = $cal_names[ $ge['calendar_id'] ] ?? '';
+            $label = $ge['summary'] !== '' ? $ge['summary'] : 'Ocupado';
+            $out[] = [
+                'title'           => ( $who ? $who . ' · ' : '' ) . $label,
+                'start'           => $ge['start'],
+                'end'             => $ge['end'],
+                'allDay'          => ! empty( $ge['all_day'] ),
+                'backgroundColor' => '#6b7280',
+                'borderColor'     => '#6b7280',
+                'textColor'       => '#ffffff',
+                'extendedProps'   => [
+                    'status'   => 'google',
+                    'location' => '',
+                    'email'    => '',
+                ],
+            ];
+        }
+        return $out;
     }
 }
