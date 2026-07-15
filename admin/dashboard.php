@@ -111,18 +111,6 @@ $page = sanitize_text_field( $_GET['page'] ?? 'six40-dashboard' );
         </table>
       <?php endif; ?>
     </div>
-
-    <div class="six40-panel">
-      <div class="six40-panel-header">
-        <h2>Calendario de citas</h2>
-        <select id="six40-calendar-location">
-          <option value="">Todos los locales</option>
-          <option value="malaga">Málaga</option>
-          <option value="torremolinos">Torremolinos</option>
-        </select>
-      </div>
-      <div id="six40-calendar"></div>
-    </div>
     <?php break;
 
     // ── CITAS ────────────────────────────────────────────────────────────────
