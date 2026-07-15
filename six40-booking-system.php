@@ -3,7 +3,7 @@
  * Plugin Name: Six40 Booking System
  * Plugin URI:  https://six40.katibu.es/
  * Description: Sistema de citas para Sixcuarenta 640 Barbería (Málaga y Torremolinos).
- * Version:     1.10.1
+ * Version:     1.11.0
  * Author:      Katibu
  * Author URI:  https://katibu.es/
  * License:     GPL-2.0+
@@ -13,7 +13,7 @@
 defined( 'ABSPATH' ) || exit;
 
 // ── Constants ──────────────────────────────────────────────────────────────────
-define( 'SIX40_VERSION',    '1.10.1' );
+define( 'SIX40_VERSION',    '1.11.0' );
 define( 'SIX40_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'SIX40_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 define( 'SIX40_PLUGIN_FILE', __FILE__ );
@@ -114,6 +114,8 @@ function six40_init() {
     add_action( 'wp_ajax_nopriv_six40_get_services', 'six40_ajax_get_services' );
     add_action( 'wp_ajax_six40_get_slots',         'six40_ajax_get_slots' );
     add_action( 'wp_ajax_nopriv_six40_get_slots',  'six40_ajax_get_slots' );
+    add_action( 'wp_ajax_six40_get_month_days',        'six40_ajax_get_month_days' );
+    add_action( 'wp_ajax_nopriv_six40_get_month_days', 'six40_ajax_get_month_days' );
     add_action( 'wp_ajax_six40_submit_booking',        'six40_ajax_submit_booking' );
     add_action( 'wp_ajax_nopriv_six40_submit_booking', 'six40_ajax_submit_booking' );
 }
@@ -229,6 +231,25 @@ function six40_ajax_get_slots() {
     }
 
     wp_send_json_success( [ 'slots' => $slots ] );
+}
+
+// ── AJAX: días del mes con disponibilidad (para grisar el calendario) ──────────
+function six40_ajax_get_month_days() {
+    check_ajax_referer( 'six40_booking_nonce', 'nonce' );
+
+    $location    = sanitize_text_field( $_POST['location'] ?? '' );
+    $year_month  = sanitize_text_field( $_POST['year_month'] ?? '' );
+    $service_ids = array_values( array_unique( array_filter( array_map( 'intval', (array) ( $_POST['service_ids'] ?? [] ) ) ) ) );
+    $barber_id   = intval( $_POST['barber_id'] ?? 0 );
+
+    if ( ! $location || ! preg_match( '/^\d{4}-\d{2}$/', $year_month ) || empty( $service_ids ) ) {
+        wp_send_json_error( [ 'message' => __( 'Parámetros inválidos.', 'six40-booking' ) ] );
+    }
+
+    $api  = new Six40_Booking_API();
+    $days = $api->get_month_available_days( $location, $year_month, $service_ids, $barber_id );
+
+    wp_send_json_success( [ 'days' => $days ] );
 }
 
 // ── AJAX: submit booking ───────────────────────────────────────────────────────

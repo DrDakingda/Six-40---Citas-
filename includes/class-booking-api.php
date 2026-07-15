@@ -301,6 +301,188 @@ class Six40_Booking_API {
 		return array_values( $available_slots );
 	}
 
+	/**
+	 * Días de un mes que tienen AL MENOS un hueco libre. Calcula el mes entero
+	 * con pocas consultas (horarios, citas y freeBusy de una sola vez) para poder
+	 * grisar en el calendario los días sin disponibilidad.
+	 *
+	 * @param string $location
+	 * @param string $year_month  'YYYY-MM'
+	 * @param array  $service_ids
+	 * @param int    $only_barber_id  0 = cualquiera del local
+	 * @return array  ['YYYY-MM-DD', ...] días con disponibilidad
+	 */
+	public function get_month_available_days( $location, $year_month, $service_ids, $only_barber_id = 0 ) {
+		if ( ! preg_match( '/^\d{4}-\d{2}$/', (string) $year_month ) ) {
+			return [];
+		}
+		$duration = $this->calculate_service_duration( $service_ids );
+		if ( $duration <= 0 ) {
+			return [];
+		}
+		$slots_needed = ceil( $duration / self::SLOT_MINS );
+
+		$first = $year_month . '-01';
+		$last  = $year_month . '-' . date( 't', strtotime( $first ) );
+		$today = wp_date( 'Y-m-d' );
+		$maxd  = wp_date( 'Y-m-d', strtotime( '+60 days' ) );
+
+		// Barberos del local, filtrados por barbero concreto y por estado.
+		$barbers = $this->get_barbers( $location );
+		if ( is_wp_error( $barbers ) || empty( $barbers ) ) {
+			return [];
+		}
+		$statuses = $this->get_barber_statuses( $location );
+		$barbers  = array_values( array_filter( (array) $barbers, function ( $b ) use ( $only_barber_id, $statuses ) {
+			if ( $only_barber_id && (int) $b['id'] !== (int) $only_barber_id ) {
+				return false;
+			}
+			return ( $statuses[ $b['id'] ] ?? 'available' ) === 'available';
+		} ) );
+		if ( empty( $barbers ) ) {
+			return [];
+		}
+		$barber_ids = array_map( function ( $b ) { return (int) $b['id']; }, $barbers );
+
+		// Horarios de la semana (1 consulta) → [bid][dow] = tramos
+		$sched = [];
+		$rows  = $this->supabase_request( 'GET', 'barber_schedules', [], [
+			'select'    => 'barber_id,day_of_week,start_time,end_time',
+			'barber_id' => 'in.(' . implode( ',', $barber_ids ) . ')',
+			'order'     => 'start_time.asc',
+		] );
+		if ( ! is_wp_error( $rows ) ) {
+			foreach ( (array) $rows as $r ) {
+				$sched[ (int) $r['barber_id'] ][ (int) $r['day_of_week'] ][] = $r;
+			}
+		}
+		if ( empty( $sched ) ) {
+			return [];
+		}
+
+		// Días libres puntuales del mes (1 consulta) → [date][bid]
+		$days_off = [];
+		$rows = $this->supabase_request( 'GET', 'barber_days_off', [], [
+			'select' => 'barber_id,date',
+			'and'    => '(date.gte.' . $first . ',date.lte.' . $last . ')',
+		] );
+		if ( ! is_wp_error( $rows ) ) {
+			foreach ( (array) $rows as $r ) {
+				$days_off[ $r['date'] ][ (int) $r['barber_id'] ] = true;
+			}
+		}
+
+		// Citas del mes (1 consulta) → ocupación por día (misma lógica que el día suelto)
+		$occupied = [];
+		$rows = $this->supabase_request( 'GET', 'appointments', [], [
+			'select'   => 'barber_id,date,start_time,end_time',
+			'location' => 'eq.' . $location,
+			'status'   => 'neq.cancelled',
+			'and'      => '(date.gte.' . $first . ',date.lte.' . $last . ')',
+		] );
+		if ( ! is_wp_error( $rows ) ) {
+			$by_day = [];
+			foreach ( (array) $rows as $r ) {
+				if ( ! empty( $r['date'] ) ) {
+					$by_day[ $r['date'] ][] = $r;
+				}
+			}
+			foreach ( $by_day as $d => $list ) {
+				$occupied[ $d ] = $this->build_occupied_map( $list );
+			}
+		}
+
+		// Ocupación de Google de todo el mes (1 llamada)
+		$cal_map = (array) get_option( 'six40_barber_calendars', [] );
+		$cal_ids = [];
+		$cal_to_barbers = [];
+		foreach ( $barbers as $b ) {
+			$cid = trim( (string) ( $cal_map[ (int) $b['id'] ] ?? '' ) );
+			if ( $cid !== '' ) {
+				$cal_ids[] = $cid;
+				$cal_to_barbers[ $cid ][] = (int) $b['id'];
+			}
+		}
+		if ( ! empty( $cal_ids ) ) {
+			$busy = ( new Six40_Google_Calendar() )->get_busy_range( $cal_ids, $first, $last );
+			foreach ( (array) $busy as $cid => $days ) {
+				foreach ( (array) $days as $d => $intervals ) {
+					foreach ( (array) ( $cal_to_barbers[ $cid ] ?? [] ) as $bid ) {
+						if ( ! isset( $occupied[ $d ] ) ) {
+							$occupied[ $d ] = [];
+						}
+						foreach ( (array) $intervals as $iv ) {
+							$this->mark_busy_slots( $occupied[ $d ], $bid, $iv[0] ?? '', $iv[1] ?? '' );
+						}
+					}
+				}
+			}
+		}
+
+		// Vacaciones programadas (opción WP)
+		$vac = (array) get_option( 'six40_barber_vacations', [] );
+
+		// Recorrer los días del mes
+		$cutoff    = ( new \DateTime( 'now', wp_timezone() ) )->modify( '+30 minutes' )->format( 'H:i' );
+		$available = [];
+		$total     = (int) date( 't', strtotime( $first ) );
+
+		for ( $i = 1; $i <= $total; $i++ ) {
+			$d = sprintf( '%s-%02d', $year_month, $i );
+			if ( $d < $today || $d > $maxd || $this->is_closed_date( $d ) ) {
+				continue;
+			}
+			$dt  = \DateTime::createFromFormat( 'Y-m-d', $d );
+			$dow = ( (int) $dt->format( 'N' ) ) - 1;
+			$found = false;
+
+			foreach ( $barbers as $b ) {
+				$bid = (int) $b['id'];
+				if ( ! empty( $days_off[ $d ][ $bid ] ) || $this->barber_on_vacation( $vac, $bid, $d ) ) {
+					continue;
+				}
+				foreach ( (array) ( $sched[ $bid ][ $dow ] ?? [] ) as $w ) {
+					$slots = $this->generate_slots_in_window( $w['start_time'], $w['end_time'], $duration );
+					foreach ( $slots as $slot ) {
+						if ( $d === $today && $slot < $cutoff ) {
+							continue;
+						}
+						$free = true;
+						$dtc  = \DateTime::createFromFormat( 'H:i', $slot );
+						for ( $k = 0; $k < $slots_needed; $k++ ) {
+							if ( isset( $occupied[ $d ][ $bid ][ $dtc->format( 'H:i' ) ] ) ) {
+								$free = false;
+								break;
+							}
+							$dtc->modify( '+' . self::SLOT_MINS . ' minutes' );
+						}
+						if ( $free ) {
+							$found = true;
+							break 3;
+						}
+					}
+				}
+			}
+			if ( $found ) {
+				$available[] = $d;
+			}
+		}
+
+		return $available;
+	}
+
+	/** ¿El barbero está de vacaciones programadas ese día? */
+	private function barber_on_vacation( $vac, $barber_id, $date ) {
+		foreach ( (array) ( $vac[ $barber_id ] ?? [] ) as $r ) {
+			$s = $r['start'] ?? '';
+			$e = $r['end'] ?? '';
+			if ( $s && $e && $date >= $s && $date <= $e ) {
+				return true;
+			}
+		}
+		return false;
+	}
+
 	// ── Public: Appointments ──────────────────────────────────────────────────
 
 	/**

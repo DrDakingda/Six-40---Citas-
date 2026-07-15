@@ -22,6 +22,8 @@
   var servicesCache   = {};   // { location: [categories] }
   var servicesById    = {};   // { id: {name,duration,price,price_from} }
   var loadedServicesFor = ''; // local para el que están pintados los servicios
+  // Días con hueco por mes: { 'YYYY-MM': ['YYYY-MM-DD',...] | 'loading' | null }
+  var availByMonth    = {};
 
   var TODAY = wrap.getAttribute('data-today') || null;
   var MAXD  = wrap.getAttribute('data-max')   || null;
@@ -120,6 +122,7 @@
     $btn.closest('.tf-cards').find('.tf-card').removeClass('selected');
     $btn.addClass('selected');
     $('#tf-' + field).val(value);
+    availByMonth = {}; // cambia local o modo → recalcular disponibilidad
 
     if (field === 'location') {
       // Cambiar de local invalida barbero/servicios/fecha/hora
@@ -162,6 +165,7 @@
     $('.tf-barber-card').removeClass('selected');
     $(this).addClass('selected');
     $('#tf-barber-id').val($(this).data('id'));
+    availByMonth = {}; // otro barbero → otra disponibilidad
     setTimeout(nextStep, 320);
   });
 
@@ -272,8 +276,9 @@
 
   $(document).on('change', '.tf-service-input', function () {
     $('#err-services').text('');
-    // Cambiar servicios cambia la duración → invalidar la hora ya elegida.
+    // Cambiar servicios cambia la duración → invalidar hora elegida y disponibilidad.
     $('#tf-start-time').val('');
+    availByMonth = {};
     updateEstimate();
   });
 
@@ -294,6 +299,33 @@
       if (r && r.start && r.end && ds >= r.start && ds <= r.end) { return true; }
     }
     return false;
+  }
+
+  function monthKey(y, m) { return y + '-' + pad(m + 1); }
+
+  // Pide al servidor qué días del mes tienen algún hueco libre, para grisar el resto.
+  function loadMonthAvailability(y, m) {
+    var key = monthKey(y, m);
+    if (availByMonth[key] !== undefined) return; // ya cargado, cargando o fallido
+    var location = $('#tf-location').val();
+    var ids = selectedServiceIds();
+    if (!location || !ids.length) return;
+
+    availByMonth[key] = 'loading';
+    $.post(six40Ajax.ajaxUrl, {
+      action:      'six40_get_month_days',
+      nonce:       six40Ajax.nonce,
+      location:    location,
+      year_month:  key,
+      service_ids: ids,
+      barber_id:   skipBarberStep ? 0 : (parseInt($('#tf-barber-id').val(), 10) || 0)
+    }, function (res) {
+      availByMonth[key] = (res.success && res.data && res.data.days) ? res.data.days : [];
+      if (monthKey(calYear, calMonth) === key) renderCalendar();
+    }).fail(function () {
+      // Si falla, no grisamos nada (mejor permitir que bloquear de más).
+      availByMonth[key] = null;
+    });
   }
 
   function buildCalendar() {
@@ -332,12 +364,17 @@
       if (selBarber && allVac[selBarber]) { vacRanges = allVac[selBarber]; }
     }
 
+    // Días con hueco de este mes (si ya los sabemos): el resto se grisa.
+    var avail    = availByMonth[monthKey(calYear, calMonth)];
+    var haveAvail = Object.prototype.toString.call(avail) === '[object Array]';
+
     var html = '';
     for (var i = 0; i < startOffset; i++) { html += '<span class="tf-cal-cell tf-cal-empty"></span>'; }
     for (var d = 1; d <= daysInMonth; d++) {
       var ds  = ymd(calYear, calMonth, d);
       var dow = new Date(calYear, calMonth, d).getDay(); // 0=domingo
-      var closed = (closedWeekdays.indexOf(dow) !== -1) || (holidays.indexOf(ds) !== -1) || inVacation(ds, vacRanges);
+      var noSlots = haveAvail && avail.indexOf(ds) === -1;
+      var closed = (closedWeekdays.indexOf(dow) !== -1) || (holidays.indexOf(ds) !== -1) || inVacation(ds, vacRanges) || noSlots;
       var disabled = (TODAY && ds < TODAY) || (MAXD && ds > MAXD) || closed;
       var cls = 'tf-cal-cell tf-cal-day'
               + (disabled ? ' tf-cal-disabled' : '')
@@ -359,6 +396,9 @@
     }
     $('#tf-cal-prev').prop('disabled', prevDisabled);
     $('#tf-cal-next').prop('disabled', nextDisabled);
+
+    // Si aún no sabemos qué días tienen hueco, pedirlos (al llegar, se repinta).
+    loadMonthAvailability(calYear, calMonth);
   }
 
   $('#tf-cal-prev').on('click', function () {

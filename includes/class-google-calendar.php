@@ -155,6 +155,78 @@ class Six40_Google_Calendar {
     }
 
     /**
+     * Intervalos ocupados de varios calendarios en un rango de días.
+     * Una sola llamada a freeBusy para todo el rango.
+     *
+     * @return array [ calendar_id => [ 'YYYY-MM-DD' => [ ['HH:MM','HH:MM'], ... ] ] ]
+     */
+    public function get_busy_range( $calendar_ids, $date_from, $date_to ) {
+        $calendar_ids = array_values( array_filter( array_unique( (array) $calendar_ids ) ) );
+        if ( empty( $calendar_ids ) ) {
+            return [];
+        }
+        $re = '/^\d{4}-\d{2}-\d{2}$/';
+        if ( ! preg_match( $re, (string) $date_from ) || ! preg_match( $re, (string) $date_to ) ) {
+            return [];
+        }
+        $token = $this->get_access_token();
+        if ( is_wp_error( $token ) ) {
+            return [];
+        }
+
+        $tz = new \DateTimeZone( 'Europe/Madrid' );
+        try {
+            $min = new \DateTime( $date_from . ' 00:00:00', $tz );
+            $max = new \DateTime( $date_to . ' 23:59:59', $tz );
+        } catch ( \Exception $e ) {
+            return [];
+        }
+
+        $response = wp_remote_post( 'https://www.googleapis.com/calendar/v3/freeBusy', [
+            'headers' => [
+                'Authorization' => 'Bearer ' . $token,
+                'Content-Type'  => 'application/json',
+            ],
+            'body'    => wp_json_encode( [
+                'timeMin'  => $min->format( \DateTime::RFC3339 ),
+                'timeMax'  => $max->format( \DateTime::RFC3339 ),
+                'timeZone' => 'Europe/Madrid',
+                'items'    => array_map( function ( $id ) { return [ 'id' => $id ]; }, $calendar_ids ),
+            ] ),
+            'timeout' => 20,
+        ] );
+        if ( is_wp_error( $response ) || wp_remote_retrieve_response_code( $response ) >= 400 ) {
+            return [];
+        }
+
+        $data = json_decode( wp_remote_retrieve_body( $response ), true );
+        $out  = [];
+        foreach ( (array) ( $data['calendars'] ?? [] ) as $cid => $info ) {
+            foreach ( (array) ( $info['busy'] ?? [] ) as $b ) {
+                try {
+                    $s = ( new \DateTime( $b['start'] ) )->setTimezone( $tz );
+                    $e = ( new \DateTime( $b['end'] ) )->setTimezone( $tz );
+                } catch ( \Exception $ex ) {
+                    continue;
+                }
+                // Repartir el intervalo por días (eventos de varios días / todo el día).
+                $cur   = clone $s;
+                $guard = 0;
+                while ( $cur->format( 'Y-m-d' ) <= $e->format( 'Y-m-d' ) && $guard++ < 40 ) {
+                    $d     = $cur->format( 'Y-m-d' );
+                    $start = ( $d === $s->format( 'Y-m-d' ) ) ? $s->format( 'H:i' ) : '00:00';
+                    $end   = ( $d === $e->format( 'Y-m-d' ) ) ? $e->format( 'H:i' ) : '23:59';
+                    if ( $start < $end ) {
+                        $out[ $cid ][ $d ][] = [ $start, $end ];
+                    }
+                    $cur->modify( '+1 day' )->setTime( 0, 0 );
+                }
+            }
+        }
+        return $out;
+    }
+
+    /**
      * Estado de un evento en Google Calendar: 'active' | 'cancelled' | 'deleted' | null (error/skip).
      *
      * @param string $calendar_id
