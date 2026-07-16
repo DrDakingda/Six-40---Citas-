@@ -1,0 +1,8 @@
+# Normalizar finales de línea: LF en el repo, checkout según plataforma.
+* text=auto
+
+# Binarios
+*.zip binary
+*.png binary
+*.jpg binary
+*.webp binary

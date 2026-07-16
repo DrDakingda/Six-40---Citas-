@@ -1,6 +1,11 @@
 -- ============================================================
--- Six40 Booking System — Supabase Schema (v2.0)
+-- Six40 Booking System — Supabase Schema (v3.0)
 -- Ejecutar en: Supabase → SQL Editor
+--
+-- Estado CONSOLIDADO a jul 2026: incluye ya todas las migraciones
+-- (supabase-migration-*.sql). En una instalación desde cero basta
+-- con ejecutar este archivo; las migraciones quedan como histórico
+-- para instalaciones que ya estaban en marcha.
 -- ============================================================
 
 -- ============================================================
@@ -15,15 +20,18 @@ CREATE TABLE IF NOT EXISTS public.barbers (
 );
 
 -- Datos iniciales
-INSERT INTO public.barbers (id, name, location) VALUES
-  (1, 'Samuel Puertas', 'malaga'),
-  (2, 'Graciela Arcos', 'malaga'),
-  (3, 'Adrián Ortigosa', 'malaga'),
-  (4, 'Alejandro Alfonso', 'malaga'),
-  (5, 'Antonio Pérez', 'torremolinos'),
-  (6, 'Graciela Arcos', 'torremolinos'),
-  (7, 'Juan Jose García', 'torremolinos'),
-  (8, 'Adrián Ortigosa', 'torremolinos')
+-- El id 6 (Graciela en Torremolinos) se conserva inactivo: Graciela solo
+-- atiende en Málaga, pero el registro mantiene la integridad referencial
+-- de citas históricas.
+INSERT INTO public.barbers (id, name, location, active) VALUES
+  (1, 'Samuel Puertas', 'malaga', true),
+  (2, 'Graciela Arcos', 'malaga', true),
+  (3, 'Adrián Ortigosa', 'malaga', true),
+  (4, 'Alejandro Alfonso', 'malaga', true),
+  (5, 'Antonio Pérez', 'torremolinos', true),
+  (6, 'Graciela Arcos', 'torremolinos', false),
+  (7, 'Juan Jose García', 'torremolinos', true),
+  (8, 'Adrián Ortigosa', 'torremolinos', true)
 ON CONFLICT (id) DO NOTHING;
 
 -- ============================================================
@@ -117,7 +125,7 @@ CREATE TABLE IF NOT EXISTS public.services (
   name            TEXT NOT NULL,
   duration        SMALLINT NOT NULL CHECK (duration > 0), -- minutos
   type            TEXT NOT NULL CHECK (type IN ('base', 'additional')), -- compat (no se usa en menú libre)
-  category        TEXT,          -- 'corte' | 'barba' | 'depilacion' | 'tratamiento'
+  category        TEXT,          -- 'corte' | 'barba' | 'tratamiento'
   location        TEXT CHECK (location IS NULL OR location IN ('malaga', 'torremolinos')), -- NULL = ambos
   price           NUMERIC(6,2),  -- precio orientativo
   price_from      BOOLEAN NOT NULL DEFAULT false, -- true = "desde X €"
@@ -170,6 +178,9 @@ ON CONFLICT DO NOTHING;
 -- (Las combinaciones corte+barba=40, corte+mechas=60, etc. las calcula el plugin.)
 UPDATE public.services SET duration = 20 WHERE category = 'barba';
 
+-- La secuencia no debe chocar con los ids insertados a mano
+SELECT setval(pg_get_serial_sequence('public.services','id'), (SELECT MAX(id) FROM public.services));
+
 -- ============================================================
 -- 4. TABLA: Citas (actualizada)
 -- ============================================================
@@ -200,6 +211,7 @@ CREATE INDEX IF NOT EXISTS idx_appt_location_date   ON public.appointments (loca
 CREATE INDEX IF NOT EXISTS idx_appt_barber_date     ON public.appointments (barber_id, date);
 CREATE INDEX IF NOT EXISTS idx_appt_status          ON public.appointments (status);
 CREATE INDEX IF NOT EXISTS idx_appt_email           ON public.appointments (customer_email);
+CREATE INDEX IF NOT EXISTS idx_appt_manage_token    ON public.appointments (manage_token);
 
 -- Trigger updated_at
 CREATE OR REPLACE FUNCTION public.handle_updated_at()
