@@ -208,8 +208,8 @@
 }
 
 .tf-barber-avatar {
-  width: 48px;
-  height: 48px;
+  width: 60px;
+  height: 60px;
   border-radius: 50%;
   background: rgba(255,255,255,.1);
   font-size: 20px;
@@ -225,6 +225,25 @@
 .tf-barber-card.selected .tf-barber-avatar {
   background: var(--tf-red);
   color: var(--tf-on-accent);
+}
+
+/* Avatar con foto del barbero */
+.tf-barber-avatar--img {
+  overflow: hidden;
+  background: rgba(255,255,255,.06);
+}
+
+.tf-barber-avatar--img img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+  display: block;
+}
+
+.tf-barber-card.selected .tf-barber-avatar--img {
+  background: rgba(255,255,255,.06);
+  box-shadow: 0 0 0 2px var(--tf-red);
 }
 
 .tf-barber-name {
@@ -361,6 +380,17 @@
 
 .tf-btn-ok:hover { opacity: 0.85; }
 .tf-btn-home { text-decoration: none; }
+
+/* El tema aplica su color de enlace (rojo) al hover, y el texto desaparece
+   sobre el fondo rojo del botón. Forzamos el texto claro en todos los estados. */
+.tf-wrap .tf-btn-home,
+.tf-wrap .tf-btn-home:hover,
+.tf-wrap .tf-btn-home:focus,
+.tf-wrap .tf-btn-home:active,
+.tf-wrap .tf-btn-home:visited {
+  color: var(--tf-on-accent) !important;
+  text-decoration: none !important;
+}
 
 .tf-check {
   font-size: 14px;
@@ -502,6 +532,14 @@
 .tf-success-inner {
   text-align: center;
   padding: 40px;
+}
+
+.tf-success-logo {
+  display: block;
+  width: 160px;
+  max-width: 60%;
+  height: auto;
+  margin: 0 auto 28px;
 }
 
 .tf-success-check {

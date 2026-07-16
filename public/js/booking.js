@@ -14,9 +14,22 @@
 
   var locLabels = { malaga: 'Málaga', torremolinos: 'Torremolinos' };
 
+  // Graciela solo trabaja en Málaga (id 6 de Torremolinos desactivado).
   var barbersByLocation = {
     malaga:       { 1:'Samuel Puertas', 2:'Graciela Arcos', 3:'Adrián Ortigosa', 4:'Alejandro Alfonso' },
-    torremolinos: { 5:'Antonio Pérez',  6:'Graciela Arcos', 7:'Juan Jose García', 8:'Adrián Ortigosa'  }
+    torremolinos: { 5:'Antonio Pérez',  7:'Juan Jose García', 8:'Adrián Ortigosa' }
+  };
+
+  // Avatares por barbero (miniatura en la tarjeta de selección).
+  var AVATAR_BASE = 'https://six40.katibu.es/wp-content/uploads/2026/06/';
+  var barberAvatars = {
+    1: AVATAR_BASE + 'Samuel.webp',
+    2: AVATAR_BASE + 'Graciela.webp',
+    3: AVATAR_BASE + 'Adri.webp',
+    4: AVATAR_BASE + 'Alejandro.webp',
+    5: AVATAR_BASE + 'Antonio.webp',
+    7: AVATAR_BASE + 'Juanjo.webp',
+    8: AVATAR_BASE + 'Adri.webp'
   };
 
   var servicesCache   = {};   // { location: [categories] }
@@ -24,6 +37,8 @@
   var loadedServicesFor = ''; // local para el que están pintados los servicios
   // Días con hueco por mes: { 'YYYY-MM': ['YYYY-MM-DD',...] | 'loading' | null }
   var availByMonth    = {};
+  // Modo auto: qué barbero atendería cada hueco { 'HH:MM': {id,name} } (del día cargado)
+  var slotBarbers     = {};
 
   var TODAY = wrap.getAttribute('data-today') || null;
   var MAXD  = wrap.getAttribute('data-max')   || null;
@@ -153,8 +168,15 @@
     var barbers = barbersByLocation[location] || {};
     var html = '';
     $.each(barbers, function (id, name) {
+      // Foto del barbero si la tenemos; si no (o si falla la carga), su inicial.
+      var avatar = barberAvatars[id]
+        ? '<div class="tf-barber-avatar tf-barber-avatar--img">' +
+            '<img src="' + barberAvatars[id] + '" alt="' + name + '" loading="lazy" ' +
+              'onerror="this.parentNode.classList.remove(\'tf-barber-avatar--img\');this.parentNode.textContent=\'' + name.charAt(0) + '\';">' +
+          '</div>'
+        : '<div class="tf-barber-avatar">' + name.charAt(0) + '</div>';
       html += '<button type="button" class="tf-barber-card" data-id="' + id + '">' +
-              '<div class="tf-barber-avatar">' + name.charAt(0) + '</div>' +
+              avatar +
               '<div class="tf-barber-name">' + name + '</div>' +
               '</button>';
     });
@@ -214,6 +236,7 @@
         html += '<label class="tf-svc-item">' +
                   '<input type="checkbox" class="tf-service-input" value="' + svc.id + '" ' +
                     'data-duration="' + svc.duration + '" data-price="' + (svc.price || 0) + '" ' +
+                    'data-cat="' + (svc.category || '') + '" ' +
                     'data-from="' + (svc.price_from ? '1' : '0') + '">' +
                   '<span class="tf-svc-check"></span>' +
                   '<span class="tf-svc-info">' +
@@ -274,7 +297,19 @@
     }
   }
 
+  // Corte y barba son excluyentes dentro de su categoría: solo un tipo de corte
+  // y solo un servicio de barba por cita (los tratamientos sí se combinan).
+  var EXCLUSIVE_CATS = ['corte', 'barba'];
+
   $(document).on('change', '.tf-service-input', function () {
+    if (this.checked) {
+      var cat = String($(this).data('cat') || '');
+      if (EXCLUSIVE_CATS.indexOf(cat) > -1) {
+        $('.tf-service-input:checked').not(this)
+          .filter('[data-cat="' + cat + '"]')
+          .prop('checked', false);
+      }
+    }
     $('#err-services').text('');
     // Cambiar servicios cambia la duración → invalidar hora elegida y disponibilidad.
     $('#tf-start-time').val('');
@@ -432,6 +467,8 @@
       return;
     }
 
+    slotBarbers = {}; // se rellena con la respuesta (solo modo auto)
+
     $('#tf-slots-container').html(
       '<div class="tf-slots-loading"><div class="tf-spinner"></div><span>' + six40Ajax.strings.loading + '</span></div>'
     );
@@ -449,6 +486,7 @@
           (res.data && res.data.message ? res.data.message : six40Ajax.strings.error) + '</div>');
         return;
       }
+      slotBarbers = res.data.slot_barbers || {};
       renderSlots(res.data.slots);
     }).fail(function () {
       $('#tf-slots-container').html('<div class="tf-no-slots">' + six40Ajax.strings.error + '</div>');
@@ -522,6 +560,10 @@
     var barberName = 'Primer disponible';
     if (!skipBarberStep && barberId !== '0' && barbersByLocation[location]) {
       barberName = barbersByLocation[location][barberId] || barberName;
+    } else if (skipBarberStep) {
+      // Modo auto: mostramos con quién será la cita según el hueco elegido.
+      var sb = slotBarbers[$('#tf-start-time').val()];
+      if (sb && sb.name) { barberName = sb.name; }
     }
 
     var ids = selectedServiceIds();
@@ -595,6 +637,7 @@
     $('.tf-service-input').prop('checked', false);
     skipBarberStep = false;
     loadedServicesFor = '';
+    slotBarbers = {};
     calYear = undefined; calMonth = undefined;
     clearErrors();
     $('#tf-services-container').html('<p class="tf-muted">Cargando servicios…</p>');

@@ -182,9 +182,14 @@ class Six40_Booking_API {
 	 * @param string   $location           'malaga' or 'torremolinos'
 	 * @param string   $date               'YYYY-MM-DD'
 	 * @param int|array $base_service_id   Base service ID (or array of service IDs for duration calc)
+	 * @param int      $only_barber_id     0 = cualquiera del local
+	 * @param bool     $with_barbers       true → devuelve también qué barbero atendería
+	 *                                     cada hueco (el primero libre, mismo orden que
+	 *                                     find_free_barber). Formato:
+	 *                                     [ 'slots' => [...], 'barbers' => [ 'HH:MM' => ['id','name'] ] ]
 	 * @return array|WP_Error Array of available times ['10:00', '10:30', ...]
 	 */
-	public function get_available_slots( $location, $date, $base_service_id, $only_barber_id = 0 ) {
+	public function get_available_slots( $location, $date, $base_service_id, $only_barber_id = 0, $with_barbers = false ) {
 		// Validate date
 		if ( $date < wp_date( 'Y-m-d' ) ) {
 			return [];
@@ -235,6 +240,7 @@ class Six40_Booking_API {
 		$occupied = $this->build_occupied_map( $appointments ?? [] );
 		$this->merge_google_busy( $occupied, $barbers, $date );
 		$available_slots = [];
+		$slot_barbers    = []; // 'HH:MM' => primer barbero libre (orden id asc)
 
 		// For each barber, try to find free slots
 		foreach ( $barbers as $barber ) {
@@ -280,6 +286,12 @@ class Six40_Booking_API {
 
 					if ( $free ) {
 						$available_slots[] = $slot;
+						if ( ! isset( $slot_barbers[ $slot ] ) ) {
+							$slot_barbers[ $slot ] = [
+								'id'   => (int) $barber['id'],
+								'name' => $barber['name'] ?? '',
+							];
+						}
 					}
 				}
 			}
@@ -298,7 +310,19 @@ class Six40_Booking_API {
 			} ) );
 		}
 
-		return array_values( $available_slots );
+		$available_slots = array_values( $available_slots );
+
+		if ( $with_barbers ) {
+			$barbers_out = [];
+			foreach ( $available_slots as $s ) {
+				if ( isset( $slot_barbers[ $s ] ) ) {
+					$barbers_out[ $s ] = $slot_barbers[ $s ];
+				}
+			}
+			return [ 'slots' => $available_slots, 'barbers' => $barbers_out ];
+		}
+
+		return $available_slots;
 	}
 
 	/**
@@ -543,6 +567,19 @@ class Six40_Booking_API {
 		}
 		// Solo IDs realmente válidos
 		$service_ids = array_map( function ( $s ) { return (int) $s['id']; }, $valid_services );
+
+		// Máximo un servicio de corte y uno de barba por cita (espejo del frontend).
+		$per_cat = [];
+		foreach ( $valid_services as $s ) {
+			$c = $s['category'] ?? '';
+			$per_cat[ $c ] = ( $per_cat[ $c ] ?? 0 ) + 1;
+		}
+		if ( ( $per_cat['corte'] ?? 0 ) > 1 ) {
+			return new WP_Error( 'too_many_cortes', 'Solo puedes elegir un tipo de corte por cita.' );
+		}
+		if ( ( $per_cat['barba'] ?? 0 ) > 1 ) {
+			return new WP_Error( 'too_many_barbas', 'Solo puedes elegir un servicio de barba por cita.' );
+		}
 
 		// Calculate total duration
 		$total_duration = $this->calculate_service_duration( $service_ids );
@@ -1208,6 +1245,21 @@ class Six40_Booking_API {
 			// Check schedule
 			$schedule = $this->get_barber_schedule( $barber['id'], $day_of_week );
 			if ( empty( $schedule ) ) {
+				continue;
+			}
+
+			// La hora pedida debe caer dentro de un tramo del barbero (misma regla
+			// que get_available_slots): si no, la cita se asignaría a alguien fuera
+			// de su horario y acabaría en el calendario equivocado.
+			$fits_window = false;
+			foreach ( $schedule as $window ) {
+				$window_slots = $this->generate_slots_in_window( $window['start_time'], $window['end_time'], $total_duration );
+				if ( in_array( $start_time, $window_slots, true ) ) {
+					$fits_window = true;
+					break;
+				}
+			}
+			if ( ! $fits_window ) {
 				continue;
 			}
 

@@ -1,6 +1,6 @@
 <?php
 defined( 'ABSPATH' ) || exit;
-$page = sanitize_text_field( $_GET['page'] ?? 'six40-dashboard' );
+$page = sanitize_text_field( $_GET['page'] ?? 'six40-citas' );
 ?>
 <div class="wrap six40-admin">
   <div class="six40-admin-header">
@@ -9,9 +9,6 @@ $page = sanitize_text_field( $_GET['page'] ?? 'six40-dashboard' );
       <span class="six40-logo-sub">BARBERÍA · Sistema de citas</span>
     </div>
     <nav class="six40-nav">
-      <a href="<?= esc_url( admin_url('admin.php?page=six40-dashboard') ) ?>" class="<?= $page==='six40-dashboard'?'active':'' ?>">
-        <span class="dashicons dashicons-dashboard"></span> Dashboard
-      </a>
       <a href="<?= esc_url( admin_url('admin.php?page=six40-citas') ) ?>" class="<?= $page==='six40-citas'?'active':'' ?>">
         <span class="dashicons dashicons-calendar-alt"></span> Citas
       </a>
@@ -27,94 +24,8 @@ $page = sanitize_text_field( $_GET['page'] ?? 'six40-dashboard' );
   <div class="six40-admin-content">
   <?php switch ( $page ) :
 
-    // ── DASHBOARD ────────────────────────────────────────────────────────────
-    case 'six40-dashboard': default: ?>
-    <h1 class="six40-page-title">Dashboard</h1>
-    <p class="six40-page-subtitle"><?= esc_html( date_i18n('l, j \d\e F \d\e Y') ) ?></p>
-
-    <div class="six40-stats-grid">
-      <div class="six40-stat-card">
-        <div class="six40-stat-icon">📍</div>
-        <div class="six40-stat-body">
-          <div class="six40-stat-number"><?= esc_html( $malaga_count ?? 0 ) ?></div>
-          <div class="six40-stat-label">Citas hoy · Málaga</div>
-        </div>
-      </div>
-      <div class="six40-stat-card">
-        <div class="six40-stat-icon">📍</div>
-        <div class="six40-stat-body">
-          <div class="six40-stat-number"><?= esc_html( $torremolinos_count ?? 0 ) ?></div>
-          <div class="six40-stat-label">Citas hoy · Torremolinos</div>
-        </div>
-      </div>
-      <div class="six40-stat-card">
-        <div class="six40-stat-icon">✂️</div>
-        <div class="six40-stat-body">
-          <div class="six40-stat-number"><?= esc_html( count($today_appts ?? []) ) ?></div>
-          <div class="six40-stat-label">Total citas hoy</div>
-        </div>
-      </div>
-      <div class="six40-stat-card">
-        <div class="six40-stat-icon">💈</div>
-        <div class="six40-stat-body">
-          <div class="six40-stat-number"><?= esc_html( count(array_filter($statuses ?? [], fn($s) => $s==='available')) ) ?>/8</div>
-          <div class="six40-stat-label">Barberos disponibles</div>
-        </div>
-      </div>
-    </div>
-
-    <div class="six40-panel">
-      <div class="six40-panel-header">
-        <h2>Citas de hoy</h2>
-        <a href="<?= esc_url(admin_url('admin.php?page=six40-citas')) ?>" class="six40-btn six40-btn-sm">Ver todas</a>
-      </div>
-      <?php if ( empty($today_appts) ) : ?>
-        <div class="six40-empty">No hay citas para hoy.</div>
-      <?php else :
-        // Load barbers for lookup
-        $api = new Six40_Booking_API();
-        $all_barbers = $api->get_barbers();
-        $barbers_map = [];
-        if ( !is_wp_error( $all_barbers ) ) {
-          foreach ( $all_barbers as $b ) {
-            $barbers_map[ $b['id'] ] = $b['name'];
-          }
-        }
-        ?>
-        <table class="six40-table">
-          <thead><tr><th>Hora</th><th>Cliente</th><th>Servicio</th><th>Local</th><th>Barbero/a</th><th>Estado</th><th>Acción</th></tr></thead>
-          <tbody>
-          <?php foreach ( $today_appts as $appt ) :
-            $status = $appt['status'] ?? 'confirmed';
-            $statusLabels = ['confirmed'=>'Confirmada','completed'=>'Completada','cancelled'=>'Cancelada','no_show'=>'No presentó'];
-          ?>
-          <tr>
-            <td><strong><?= esc_html(substr($appt['start_time']??'',0,5)) ?></strong></td>
-            <td>
-              <span class="six40-customer-name"><?= esc_html($appt['customer_name']??'—') ?></span>
-              <small class="six40-customer-email"><?= esc_html($appt['customer_email']??'') ?></small>
-            </td>
-            <td><?= ($appt['services_label']??'') !== '' ? esc_html($appt['services_label']) : '—' ?></td>
-            <td><?= $appt['location']==='malaga'?'Málaga':'Torremolinos' ?></td>
-            <td><?= esc_html($barbers_map[(int)($appt['barber_id']??0)]??'—') ?></td>
-            <td><span class="six40-status six40-status--<?= esc_attr($status) ?>"><?= esc_html($statusLabels[$status]??ucfirst($status)) ?></span></td>
-            <td>
-              <select class="six40-status-select" data-id="<?= esc_attr($appt['id']??'') ?>">
-                <?php foreach ($statusLabels as $k=>$v): ?>
-                <option value="<?= $k ?>" <?= selected($status,$k,false) ?>><?= $v ?></option>
-                <?php endforeach; ?>
-              </select>
-            </td>
-          </tr>
-          <?php endforeach; ?>
-          </tbody>
-        </table>
-      <?php endif; ?>
-    </div>
-    <?php break;
-
     // ── CITAS ────────────────────────────────────────────────────────────────
-    case 'six40-citas':
+    case 'six40-citas': default:
       $appointments_list = $appointments ?? [];
       $api = new Six40_Booking_API();
       $all_barbers = $api->get_barbers();

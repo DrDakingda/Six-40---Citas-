@@ -29,7 +29,7 @@ $max_day = wp_date( 'Y-m-d', strtotime( '+60 days' ) );
             <span class="tf-card-letter">B</span>
             <span class="tf-card-content">
               <strong>Torremolinos</strong>
-              <small>Antonio · Juan · Graciela · Adrián</small>
+              <small>Antonio · Juan · Adrián</small>
             </span>
           </button>
         </div>
@@ -187,6 +187,9 @@ $max_day = wp_date( 'Y-m-d', strtotime( '+60 days' ) );
   <!-- Pantalla de éxito -->
   <div class="tf-success tf-hidden" id="six40-success">
     <div class="tf-success-inner">
+      <img class="tf-success-logo"
+           src="https://six40.katibu.es/wp-content/uploads/2026/04/Six40-Logotipo-1.png"
+           alt="Six40 Barbería" loading="lazy">
       <div class="tf-success-check">✓</div>
       <h2>¡Cita confirmada!</h2>
       <p>Revisa tu bandeja de entrada — te enviamos todos los detalles.</p>

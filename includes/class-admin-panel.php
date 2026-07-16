@@ -26,12 +26,12 @@ class Six40_Admin_Panel {
     }
 
     public function register_menus() {
-        add_menu_page( 'Six40 Booking', 'Six40 Booking', 'manage_options', 'six40-dashboard',
-            [ $this, 'page_dashboard' ], 'dashicons-calendar-alt', 26 );
-        add_submenu_page( 'six40-dashboard', 'Dashboard',    'Dashboard',    'manage_options', 'six40-dashboard', [ $this, 'page_dashboard' ] );
-        add_submenu_page( 'six40-dashboard', 'Citas',        'Citas',        'manage_options', 'six40-citas',     [ $this, 'page_citas' ] );
-        add_submenu_page( 'six40-dashboard', 'Barberos',     'Barberos',     'manage_options', 'six40-barberos',  [ $this, 'page_barberos' ] );
-        add_submenu_page( 'six40-dashboard', 'Configuración','Configuración','manage_options', 'six40-settings',  [ $this, 'page_settings' ] );
+        // Sin página "Dashboard": el menú abre directamente el listado de citas.
+        add_menu_page( 'Six40 Booking', 'Six40 Booking', 'manage_options', 'six40-citas',
+            [ $this, 'page_citas' ], 'dashicons-calendar-alt', 26 );
+        add_submenu_page( 'six40-citas', 'Citas',        'Citas',        'manage_options', 'six40-citas',     [ $this, 'page_citas' ] );
+        add_submenu_page( 'six40-citas', 'Barberos',     'Barberos',     'manage_options', 'six40-barberos',  [ $this, 'page_barberos' ] );
+        add_submenu_page( 'six40-citas', 'Configuración','Configuración','manage_options', 'six40-settings',  [ $this, 'page_settings' ] );
     }
 
     public function enqueue_assets( $hook ) {
@@ -45,19 +45,6 @@ class Six40_Admin_Panel {
     }
 
     // ── Pages ─────────────────────────────────────────────────────────────────
-
-    public function page_dashboard() {
-        $api         = new Six40_Booking_API();
-        $today       = wp_date( 'Y-m-d' );
-        $today_appts = $api->get_appointments( [ 'date' => $today ] );
-        if ( is_wp_error( $today_appts ) ) $today_appts = [];
-
-        $statuses           = $api->get_barber_statuses();
-        $malaga_count       = count( array_filter( $today_appts, fn($a) => $a['location'] === 'malaga' ) );
-        $torremolinos_count = count( array_filter( $today_appts, fn($a) => $a['location'] === 'torremolinos' ) );
-
-        require SIX40_PLUGIN_DIR . 'admin/dashboard.php';
-    }
 
     public function page_citas() {
         $api      = new Six40_Booking_API();

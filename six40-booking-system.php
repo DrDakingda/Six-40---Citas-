@@ -3,7 +3,7 @@
  * Plugin Name: Six40 Booking System
  * Plugin URI:  https://six40.katibu.es/
  * Description: Sistema de citas para Sixcuarenta 640 Barbería (Málaga y Torremolinos).
- * Version:     1.12.1
+ * Version:     1.15.0
  * Author:      Katibu
  * Author URI:  https://katibu.es/
  * License:     GPL-2.0+
@@ -13,7 +13,7 @@
 defined( 'ABSPATH' ) || exit;
 
 // ── Constants ──────────────────────────────────────────────────────────────────
-define( 'SIX40_VERSION',    '1.12.1' );
+define( 'SIX40_VERSION',    '1.15.0' );
 define( 'SIX40_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'SIX40_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 define( 'SIX40_PLUGIN_FILE', __FILE__ );
@@ -223,7 +223,21 @@ function six40_ajax_get_slots() {
         wp_send_json_error( [ 'message' => __( 'Fecha inválida.', 'six40-booking' ) ] );
     }
 
-    $api   = new Six40_Booking_API();
+    $api = new Six40_Booking_API();
+
+    // En modo "primera cita disponible" (barbero 0) pedimos también qué barbero
+    // atendería cada hueco, para mostrarlo en el resumen antes de confirmar.
+    if ( ! $barber_id ) {
+        $result = $api->get_available_slots( $location, $date, $service_ids, 0, true );
+        if ( is_wp_error( $result ) ) {
+            wp_send_json_error( [ 'message' => $result->get_error_message() ] );
+        }
+        wp_send_json_success( [
+            'slots'        => $result['slots'] ?? [],
+            'slot_barbers' => $result['barbers'] ?? (object) [],
+        ] );
+    }
+
     $slots = $api->get_available_slots( $location, $date, $service_ids, $barber_id );
 
     if ( is_wp_error( $slots ) ) {

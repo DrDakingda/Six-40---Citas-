@@ -84,7 +84,8 @@ class Six40_Manage {
   *{box-sizing:border-box}
   body{margin:0;min-height:100vh;background:var(--bg);color:var(--white);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;display:flex;align-items:flex-start;justify-content:center;padding:40px 16px}
   .m-card{width:100%;max-width:520px}
-  .m-logo{color:var(--red);font-weight:800;letter-spacing:4px;font-size:26px;text-align:center;margin-bottom:24px}
+  .m-logo{text-align:center;margin-bottom:24px}
+  .m-logo img{width:160px;max-width:60%;height:auto;display:inline-block}
   .m-box{border:1px solid var(--border);border-radius:14px;padding:24px}
   h1{font-size:20px;margin:0 0 4px}
   .m-sub{color:var(--muted);font-size:14px;margin:0 0 20px}
@@ -113,7 +114,7 @@ class Six40_Manage {
 </style></head>
 <body>
 <div class="m-card">
-  <div class="m-logo">SIX40</div>
+  <div class="m-logo"><img src="https://six40.katibu.es/wp-content/uploads/2026/04/Six40-Logotipo-1.png" alt="Six40 Barbería"></div>
   <div class="m-box">
 <?php if ( ! $ok ) : ?>
     <h1>Cita no disponible</h1>
