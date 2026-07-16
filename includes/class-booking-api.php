@@ -207,8 +207,6 @@ class Six40_Booking_API {
 			return new WP_Error( 'invalid_service', 'Invalid service(s).' );
 		}
 
-		$slots_needed = ceil( $total_duration / self::SLOT_MINS );
-
 		// Get barbers for location
 		$barbers = $this->get_barbers( $location );
 		if ( is_wp_error( $barbers ) || empty( $barbers ) ) {
@@ -237,8 +235,8 @@ class Six40_Booking_API {
 			return $appointments;
 		}
 
-		$occupied = $this->build_occupied_map( $appointments ?? [] );
-		$this->merge_google_busy( $occupied, $barbers, $date );
+		$busy_map = $this->build_busy_intervals( $appointments ?? [] );
+		$this->merge_google_busy_intervals( $busy_map, $barbers, $date );
 		$available_slots = [];
 		$slot_barbers    = []; // 'HH:MM' => primer barbero libre (orden id asc)
 
@@ -262,37 +260,14 @@ class Six40_Booking_API {
 				continue; // Barber doesn't work this day
 			}
 
-			// Generate slots for each time window
-			foreach ( $schedule as $window ) {
-				$slots = $this->generate_slots_in_window(
-					$window['start_time'],
-					$window['end_time'],
-					$total_duration
-				);
-
-				foreach ( $slots as $slot ) {
-					// Check if barber is free for all slots
-					$free = true;
-					$dt_check = \DateTime::createFromFormat( 'H:i', $slot );
-
-					for ( $i = 0; $i < $slots_needed; $i++ ) {
-						$check_time = $dt_check->format( 'H:i' );
-						if ( isset( $occupied[ $barber['id'] ][ $check_time ] ) ) {
-							$free = false;
-							break;
-						}
-						$dt_check->modify( '+' . self::SLOT_MINS . ' minutes' );
-					}
-
-					if ( $free ) {
-						$available_slots[] = $slot;
-						if ( ! isset( $slot_barbers[ $slot ] ) ) {
-							$slot_barbers[ $slot ] = [
-								'id'   => (int) $barber['id'],
-								'name' => $barber['name'] ?? '',
-							];
-						}
-					}
+			$slots = $this->slots_for_barber( $schedule, $busy_map[ (int) $barber['id'] ] ?? [], $total_duration );
+			foreach ( $slots as $slot ) {
+				$available_slots[] = $slot;
+				if ( ! isset( $slot_barbers[ $slot ] ) ) {
+					$slot_barbers[ $slot ] = [
+						'id'   => (int) $barber['id'],
+						'name' => $barber['name'] ?? '',
+					];
 				}
 			}
 		}
@@ -344,7 +319,6 @@ class Six40_Booking_API {
 		if ( $duration <= 0 ) {
 			return [];
 		}
-		$slots_needed = ceil( $duration / self::SLOT_MINS );
 
 		$first = $year_month . '-01';
 		$last  = $year_month . '-' . date( 't', strtotime( $first ) );
@@ -397,7 +371,7 @@ class Six40_Booking_API {
 		}
 
 		// Citas del mes (1 consulta) → ocupación por día (misma lógica que el día suelto)
-		$occupied = [];
+		$busy_by_day = [];
 		$rows = $this->supabase_request( 'GET', 'appointments', [], [
 			'select'   => 'barber_id,date,start_time,end_time',
 			'location' => 'eq.' . $location,
@@ -412,7 +386,7 @@ class Six40_Booking_API {
 				}
 			}
 			foreach ( $by_day as $d => $list ) {
-				$occupied[ $d ] = $this->build_occupied_map( $list );
+				$busy_by_day[ $d ] = $this->build_busy_intervals( $list );
 			}
 		}
 
@@ -432,11 +406,12 @@ class Six40_Booking_API {
 			foreach ( (array) $busy as $cid => $days ) {
 				foreach ( (array) $days as $d => $intervals ) {
 					foreach ( (array) ( $cal_to_barbers[ $cid ] ?? [] ) as $bid ) {
-						if ( ! isset( $occupied[ $d ] ) ) {
-							$occupied[ $d ] = [];
-						}
 						foreach ( (array) $intervals as $iv ) {
-							$this->mark_busy_slots( $occupied[ $d ], $bid, $iv[0] ?? '', $iv[1] ?? '' );
+							$s = $this->time_to_mins( $iv[0] ?? '' );
+							$e = $this->time_to_mins( $iv[1] ?? '' );
+							if ( $e > $s ) {
+								$busy_by_day[ $d ][ $bid ][] = [ $s, $e ];
+							}
 						}
 					}
 				}
@@ -465,26 +440,17 @@ class Six40_Booking_API {
 				if ( ! empty( $days_off[ $d ][ $bid ] ) || $this->barber_on_vacation( $vac, $bid, $d ) ) {
 					continue;
 				}
-				foreach ( (array) ( $sched[ $bid ][ $dow ] ?? [] ) as $w ) {
-					$slots = $this->generate_slots_in_window( $w['start_time'], $w['end_time'], $duration );
-					foreach ( $slots as $slot ) {
-						if ( $d === $today && $slot < $cutoff ) {
-							continue;
-						}
-						$free = true;
-						$dtc  = \DateTime::createFromFormat( 'H:i', $slot );
-						for ( $k = 0; $k < $slots_needed; $k++ ) {
-							if ( isset( $occupied[ $d ][ $bid ][ $dtc->format( 'H:i' ) ] ) ) {
-								$free = false;
-								break;
-							}
-							$dtc->modify( '+' . self::SLOT_MINS . ' minutes' );
-						}
-						if ( $free ) {
-							$found = true;
-							break 3;
-						}
+				$windows = (array) ( $sched[ $bid ][ $dow ] ?? [] );
+				if ( empty( $windows ) ) {
+					continue;
+				}
+				$slots = $this->slots_for_barber( $windows, $busy_by_day[ $d ][ $bid ] ?? [], $duration );
+				foreach ( $slots as $slot ) {
+					if ( $d === $today && $slot < $cutoff ) {
+						continue;
 					}
+					$found = true;
+					break 2;
 				}
 			}
 			if ( $found ) {
@@ -1053,74 +1019,94 @@ class Six40_Booking_API {
 		return array_values( array_unique( $ids ) );
 	}
 
+	/** 'HH:MM' (o 'HH:MM:SS' de Supabase) → minutos desde medianoche. */
+	private function time_to_mins( $t ) {
+		$p = explode( ':', substr( (string) $t, 0, 5 ) );
+		return ( (int) ( $p[0] ?? 0 ) ) * 60 + (int) ( $p[1] ?? 0 );
+	}
+
+	/** Minutos desde medianoche → 'HH:MM'. */
+	private function mins_to_time( $m ) {
+		return sprintf( '%02d:%02d', intdiv( (int) $m, 60 ), ( (int) $m ) % 60 );
+	}
+
 	/**
-	 * Generate all 30-min slots within a time window that fit a duration.
+	 * Huecos de inicio válidos para un barbero, con precisión de minuto.
 	 *
-	 * @param string $start_time 'HH:MM'
-	 * @param string $end_time   'HH:MM'
-	 * @param int    $duration_mins Service duration
-	 * @return array Available start times
+	 * Candidatos: la rejilla de 30 min desde el inicio de cada tramo MÁS el final
+	 * de cada ocupación (para encadenar la siguiente cita justo cuando termina la
+	 * anterior, p. ej. un corte+barba de 10:00–10:40 ofrece 10:40 al siguiente).
+	 * Un candidato vale si la cita completa cabe en el tramo sin solapar nada.
+	 *
+	 * @param array $windows       Tramos [ ['start_time','end_time'], ... ]
+	 * @param array $busy          Ocupación en minutos [ [ini, fin], ... ]
+	 * @param int   $duration_mins Duración de la cita
+	 * @return array Horas 'HH:MM' ordenadas
 	 */
-	private function generate_slots_in_window( $start_time, $end_time, $duration_mins ) {
-		$slots = [];
-		// Las horas de Supabase pueden venir como 'HH:MM' o 'HH:MM:SS' → normalizar.
-		$dt = \DateTime::createFromFormat( 'H:i', substr( $start_time, 0, 5 ) );
-		$end_dt = \DateTime::createFromFormat( 'H:i', substr( $end_time, 0, 5 ) );
-		if ( ! $dt || ! $end_dt ) {
+	private function slots_for_barber( $windows, $busy, $duration_mins ) {
+		if ( $duration_mins <= 0 ) {
 			return [];
 		}
-		$slots_needed = ceil( $duration_mins / self::SLOT_MINS );
+		$slots = [];
 
-		while ( $dt < $end_dt ) {
-			$check_dt = clone $dt;
-			$fits = true;
+		foreach ( (array) $windows as $w ) {
+			$ws = $this->time_to_mins( $w['start_time'] ?? '' );
+			$we = $this->time_to_mins( $w['end_time'] ?? '' );
+			if ( $we <= $ws ) {
+				continue;
+			}
 
-			for ( $i = 0; $i < $slots_needed; $i++ ) {
-				if ( $check_dt >= $end_dt ) {
-					$fits = false;
-					break;
+			// Candidatos: rejilla + finales de ocupaciones dentro del tramo.
+			$cands = [];
+			for ( $t = $ws; $t + $duration_mins <= $we; $t += self::SLOT_MINS ) {
+				$cands[] = $t;
+			}
+			foreach ( (array) $busy as $iv ) {
+				$e = (int) ( $iv[1] ?? 0 );
+				if ( $e >= $ws && $e + $duration_mins <= $we ) {
+					$cands[] = $e;
 				}
-				$check_dt->modify( '+' . self::SLOT_MINS . ' minutes' );
 			}
+			$cands = array_unique( $cands );
+			sort( $cands );
 
-			if ( $fits ) {
-				$slots[] = $dt->format( 'H:i' );
+			foreach ( $cands as $c ) {
+				$free = true;
+				foreach ( (array) $busy as $iv ) {
+					// Solape de [c, c+dur) con [ini, fin)
+					if ( $c < (int) $iv[1] && (int) $iv[0] < $c + $duration_mins ) {
+						$free = false;
+						break;
+					}
+				}
+				if ( $free ) {
+					$slots[] = $this->mins_to_time( $c );
+				}
 			}
-
-			$dt->modify( '+' . self::SLOT_MINS . ' minutes' );
 		}
 
+		$slots = array_values( array_unique( $slots ) );
+		sort( $slots );
 		return $slots;
 	}
 
 	/**
-	 * Build an occupied map: [barber_id][time] => true.
+	 * Intervalos ocupados por citas: [barber_id => [ [ini_min, fin_min], ... ]].
 	 *
 	 * @param array $appointments
 	 * @return array
 	 */
-	private function build_occupied_map( $appointments ) {
-		$occupied = [];
-
-		foreach ( $appointments as $appt ) {
-			$bid = (int) $appt['barber_id'];
-			$start = $appt['start_time'];
-			$end = $appt['end_time'];
-
-			$dt = \DateTime::createFromFormat( 'H:i', substr( $start, 0, 5 ) );
-			$end_dt = \DateTime::createFromFormat( 'H:i', substr( $end, 0, 5 ) );
-			if ( ! $dt || ! $end_dt ) {
-				continue;
-			}
-
-			while ( $dt <= $end_dt ) {
-				$occupied[ $bid ][ $dt->format( 'H:i' ) ] = true;
-				$dt->modify( '+' . self::SLOT_MINS . ' minutes' );
-				if ( $dt > $end_dt ) break;
+	private function build_busy_intervals( $appointments ) {
+		$busy = [];
+		foreach ( (array) $appointments as $appt ) {
+			$bid = (int) ( $appt['barber_id'] ?? 0 );
+			$s   = $this->time_to_mins( $appt['start_time'] ?? '' );
+			$e   = $this->time_to_mins( $appt['end_time'] ?? '' );
+			if ( $bid && $e > $s ) {
+				$busy[ $bid ][] = [ $s, $e ];
 			}
 		}
-
-		return $occupied;
+		return $busy;
 	}
 
 	/**
@@ -1128,11 +1114,11 @@ class Six40_Booking_API {
 	 * cada barbero (si están configurados y hay conexión con Google). Fail-safe:
 	 * si no hay calendarios o Google no responde, no cambia nada.
 	 *
-	 * @param array  &$occupied  Mapa [barber_id][H:i] => true (por referencia)
+	 * @param array  &$busy_map  Mapa [barber_id => [ [ini_min, fin_min], ... ]] (por referencia)
 	 * @param array   $barbers   Barberos considerados
 	 * @param string  $date      'YYYY-MM-DD'
 	 */
-	private function merge_google_busy( &$occupied, $barbers, $date ) {
+	private function merge_google_busy_intervals( &$busy_map, $barbers, $date ) {
 		$map = (array) get_option( 'six40_barber_calendars', [] );
 		if ( empty( $map ) ) {
 			return;
@@ -1163,28 +1149,12 @@ class Six40_Booking_API {
 				continue;
 			}
 			foreach ( (array) $intervals as $iv ) {
-				$this->mark_busy_slots( $occupied, $bid, $iv[0] ?? '', $iv[1] ?? '' );
+				$s = $this->time_to_mins( $iv[0] ?? '' );
+				$e = $this->time_to_mins( $iv[1] ?? '' );
+				if ( $e > $s ) {
+					$busy_map[ $bid ][] = [ $s, $e ];
+				}
 			}
-		}
-	}
-
-	/**
-	 * Marca como ocupados los slots de 30 min que se solapan con un intervalo.
-	 */
-	private function mark_busy_slots( &$occupied, $bid, $start, $end ) {
-		$dt     = \DateTime::createFromFormat( 'H:i', substr( (string) $start, 0, 5 ) );
-		$end_dt = \DateTime::createFromFormat( 'H:i', substr( (string) $end, 0, 5 ) );
-		if ( ! $dt || ! $end_dt || $dt >= $end_dt ) {
-			return;
-		}
-		// Alinear el inicio al slot de 30 min inferior.
-		$mins = (int) $dt->format( 'i' ) % self::SLOT_MINS;
-		if ( $mins ) {
-			$dt->modify( '-' . $mins . ' minutes' );
-		}
-		while ( $dt < $end_dt ) {
-			$occupied[ $bid ][ $dt->format( 'H:i' ) ] = true;
-			$dt->modify( '+' . self::SLOT_MINS . ' minutes' );
 		}
 	}
 
@@ -1199,7 +1169,6 @@ class Six40_Booking_API {
 	 */
 	private function find_free_barber( $location, $date, $start_time, $service_ids ) {
 		$total_duration = $this->calculate_service_duration( $service_ids );
-		$slots_needed = ceil( $total_duration / self::SLOT_MINS );
 
 		// Get barbers
 		$barbers = $this->get_barbers( $location );
@@ -1229,10 +1198,12 @@ class Six40_Booking_API {
 			return null;
 		}
 
-		$occupied = $this->build_occupied_map( $appointments ?? [] );
-		$this->merge_google_busy( $occupied, $barbers, $date );
+		$busy_map = $this->build_busy_intervals( $appointments ?? [] );
+		$this->merge_google_busy_intervals( $busy_map, $barbers, $date );
 
-		// Try each barber
+		// Try each barber: se asigna al primero cuya lista de huecos (misma lógica
+		// que get_available_slots) contiene la hora pedida. Así el barbero mostrado
+		// en el resumen y el asignado coinciden siempre.
 		foreach ( $barbers as $barber ) {
 			if ( in_array( $barber['id'], $barbers_off, true ) ) {
 				continue;
@@ -1248,36 +1219,8 @@ class Six40_Booking_API {
 				continue;
 			}
 
-			// La hora pedida debe caer dentro de un tramo del barbero (misma regla
-			// que get_available_slots): si no, la cita se asignaría a alguien fuera
-			// de su horario y acabaría en el calendario equivocado.
-			$fits_window = false;
-			foreach ( $schedule as $window ) {
-				$window_slots = $this->generate_slots_in_window( $window['start_time'], $window['end_time'], $total_duration );
-				if ( in_array( $start_time, $window_slots, true ) ) {
-					$fits_window = true;
-					break;
-				}
-			}
-			if ( ! $fits_window ) {
-				continue;
-			}
-
-			// Check if free
-			$bid = $barber['id'];
-			$free = true;
-			$dt = \DateTime::createFromFormat( 'H:i', $start_time );
-
-			for ( $i = 0; $i < $slots_needed; $i++ ) {
-				$check = $dt->format( 'H:i' );
-				if ( isset( $occupied[ $bid ][ $check ] ) ) {
-					$free = false;
-					break;
-				}
-				$dt->modify( '+' . self::SLOT_MINS . ' minutes' );
-			}
-
-			if ( $free ) {
+			$slots = $this->slots_for_barber( $schedule, $busy_map[ (int) $barber['id'] ] ?? [], $total_duration );
+			if ( in_array( $start_time, $slots, true ) ) {
 				return $barber['id'];
 			}
 		}
