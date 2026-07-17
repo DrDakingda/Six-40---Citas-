@@ -911,8 +911,8 @@ class Six40_Booking_API {
 	 *  - Barbas: 20 min c/u.
 	 *  - Corte solo: su duración base (Corte/Niño 30, Rapado 20).
 	 *  - Corte + cualquier barba → 40 min.
-	 *  - Corte + (color barba / reducción canas / iluminaciones) → sin sumar (solo el corte).
-	 *  - Corte + (color fantasía / mechas) → 60 min.  Combos raros: el mayor.
+	 *  - Corte + cualquier tratamiento (color barba, reducción canas, iluminaciones,
+	 *    color fantasía, mechas) → no suma: se queda en el bloque del corte (30 min).
 	 *  - Sin corte: suma de duraciones base de los servicios elegidos.
 	 *
 	 * @param array $service_ids Service IDs
@@ -926,7 +926,6 @@ class Six40_Booking_API {
 		$has_corte = false;
 		$corte_time = 0;
 		$beards = 0;
-		$big_treat = false; // color fantasía o mechas
 		$sum_all = 0;
 
 		foreach ( $service_ids as $svc_id ) {
@@ -935,7 +934,6 @@ class Six40_Booking_API {
 				continue;
 			}
 			$cat  = $s['category'] ?? '';
-			$name = function_exists( 'mb_strtolower' ) ? mb_strtolower( $s['name'] ?? '' ) : strtolower( $s['name'] ?? '' );
 			$dur  = (int) ( $s['duration'] ?? 0 );
 			$sum_all += $dur;
 
@@ -944,11 +942,8 @@ class Six40_Booking_API {
 				$corte_time += $dur;
 			} elseif ( $cat === 'barba' ) {
 				$beards++;
-			} elseif ( $cat === 'tratamiento' ) {
-				if ( strpos( $name, 'fantas' ) !== false || strpos( $name, 'mecha' ) !== false ) {
-					$big_treat = true;
-				}
 			}
+			// Tratamientos: con corte no añaden tiempo (ver más abajo).
 		}
 
 		// Sin corte: suma simple de duraciones base.
@@ -961,10 +956,7 @@ class Six40_Booking_API {
 		if ( $beards > 0 ) {
 			$block = 40;                    // corte + cualquier barba
 		}
-		if ( $big_treat ) {
-			$block = max( $block, 60 );      // corte + fantasía/mechas (el mayor si hay más)
-		}
-		// color barba / reducción canas / iluminaciones con corte: no suman.
+		// Cualquier tratamiento con corte (incl. fantasía/mechas) no suma tiempo.
 
 		return $block;
 	}
