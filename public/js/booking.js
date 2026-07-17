@@ -21,7 +21,12 @@
   };
 
   // Avatares por barbero (miniatura en la tarjeta de selección).
-  var AVATAR_BASE = 'https://six40.katibu.es/wp-content/uploads/2026/06/';
+  // Base dinámica: sigue al dominio de WordPress (wp_upload_dir), así no se
+  // rompe al migrar de dominio. Fallback al dominio antiguo por si acaso.
+  var UPLOADS = (typeof six40Ajax !== 'undefined' && six40Ajax.uploadsUrl)
+    ? six40Ajax.uploadsUrl
+    : 'https://sixcuarenta640.com/wp-content/uploads';
+  var AVATAR_BASE = UPLOADS + '/2026/06/';
   var barberAvatars = {
     1: AVATAR_BASE + 'Samuel.webp',
     2: AVATAR_BASE + 'Graciela.webp',

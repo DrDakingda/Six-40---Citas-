@@ -1,8 +1,9 @@
 <?php
 defined( 'ABSPATH' ) || exit;
 
-$today   = wp_date( 'Y-m-d' );
-$max_day = wp_date( 'Y-m-d', strtotime( '+60 days' ) );
+$today    = wp_date( 'Y-m-d' );
+$max_day  = wp_date( 'Y-m-d', strtotime( '+60 days' ) );
+$logo_url = rtrim( (string) ( wp_upload_dir()['baseurl'] ?? '' ), '/' ) . '/2026/04/Six40-Logotipo-1.png';
 ?>
 <div class="tf-wrap" id="six40-booking" data-today="<?= esc_attr( $today ) ?>" data-max="<?= esc_attr( $max_day ) ?>">
 
@@ -189,7 +190,7 @@ $max_day = wp_date( 'Y-m-d', strtotime( '+60 days' ) );
   <div class="tf-success tf-hidden" id="six40-success">
     <div class="tf-success-inner">
       <img class="tf-success-logo"
-           src="https://six40.katibu.es/wp-content/uploads/2026/04/Six40-Logotipo-1.png"
+           src="<?= esc_url( $logo_url ) ?>"
            alt="Six40 Barbería" loading="lazy">
       <div class="tf-success-check">✓</div>
       <h2>¡Cita confirmada!</h2>

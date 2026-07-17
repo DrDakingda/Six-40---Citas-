@@ -66,6 +66,7 @@ class Six40_Manage {
     private static function render_page( $token, $appt ) {
         $loc_labels = [ 'malaga' => 'Málaga', 'torremolinos' => 'Torremolinos' ];
         $ok  = self::is_manageable( $appt );
+        $logo_url = rtrim( (string) ( wp_upload_dir()['baseurl'] ?? '' ), '/' ) . '/2026/04/Six40-Logotipo-1.png';
         $js  = [
             'ajaxUrl' => admin_url( 'admin-ajax.php' ),
             'nonce'   => wp_create_nonce( 'six40_manage' ),
@@ -114,7 +115,7 @@ class Six40_Manage {
 </style></head>
 <body>
 <div class="m-card">
-  <div class="m-logo"><img src="https://six40.katibu.es/wp-content/uploads/2026/04/Six40-Logotipo-1.png" alt="Six40 Barbería"></div>
+  <div class="m-logo"><img src="<?= esc_url( $logo_url ) ?>" alt="Six40 Barbería"></div>
   <div class="m-box">
 <?php if ( ! $ok ) : ?>
     <h1>Cita no disponible</h1>

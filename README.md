@@ -2,7 +2,7 @@
 
 Plugin de WordPress con el sistema de citas de **Sixcuarenta 640 Barbería** (Málaga y Torremolinos): formulario de reserva en 6 pasos estilo Typeform, panel de administración, sincronización con Google Calendar y gestión de cita por el cliente (cancelar/modificar por enlace con token).
 
-- **Producción:** https://six40.katibu.es/reservar/
+- **Producción:** https://sixcuarenta640.com/reservar/
 - **Base de datos:** Supabase (PostgreSQL vía REST)
 - **Calendarios:** Google Calendar (OAuth2, calendario por barbero + por local)
 

@@ -166,7 +166,7 @@ class Six40_Email {
     </p>
     <p style="color:#555;line-height:1.6;">
       Puedes reservar una nueva cita en
-      <a href="<?= esc_url( home_url( '/pide-cita/' ) ) ?>" style="color:#b11a2d;">six40.katibu.es/pide-cita</a>.
+      <a href="<?= esc_url( home_url( '/reservar/' ) ) ?>" style="color:#b11a2d;"><?= esc_html( wp_parse_url( home_url( '/reservar/' ), PHP_URL_HOST ) ) ?></a>.
     </p>
   </div>
   <div style="background:#000000;padding:20px;text-align:center;">
