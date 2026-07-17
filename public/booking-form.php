@@ -84,6 +84,7 @@ $max_day = wp_date( 'Y-m-d', strtotime( '+60 days' ) );
         <div id="tf-services-container">
           <p class="tf-muted">Cargando servicios…</p>
         </div>
+        <p class="tf-svc-note tf-hidden" id="tf-rapado-note">El rapado deja el pelo al 0, así que no admite tratamientos de color en el pelo (fantasía, mechas, iluminaciones o reducción de canas). El color de barba sí es compatible.</p>
         <p class="tf-error" id="err-services"></p>
         <div class="tf-actions">
           <div class="tf-estimate" id="tf-estimate">

@@ -604,6 +604,19 @@
   transition: all 0.15s;
 }
 .tf-svc-item:hover { border-color: rgba(177,26,45,.4); }
+
+/* Servicio incompatible (rapado ↔ tratamiento del pelo): gris y no clicable */
+.tf-svc-item.tf-svc-disabled {
+  opacity: .4;
+  pointer-events: none;
+}
+
+.tf-svc-note {
+  margin: 10px 2px 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--tf-muted);
+}
 .tf-svc-item:has(.tf-service-input:checked) {
   border-color: var(--tf-red);
   background: rgba(177,26,45,.1);

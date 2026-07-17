@@ -233,10 +233,18 @@
       cat.items.forEach(function (svc) {
         servicesById[svc.id] = svc;
         var price = fmtPrice(svc.price, svc.price_from);
+        // Rapado = cortar al 0. Los tratamientos de color en el PELO (fantasía,
+        // mechas, iluminaciones, reducción de canas) no aplican con rapado; el
+        // color de BARBA sí (va en la barba, no en el pelo).
+        var lname   = (svc.name || '').toLowerCase();
+        var isRap   = (svc.category === 'corte') && lname.indexOf('rapado') > -1;
+        var isHair  = (svc.category === 'tratamiento') && lname.indexOf('barba') === -1;
         html += '<label class="tf-svc-item">' +
                   '<input type="checkbox" class="tf-service-input" value="' + svc.id + '" ' +
                     'data-duration="' + svc.duration + '" data-price="' + (svc.price || 0) + '" ' +
                     'data-cat="' + (svc.category || '') + '" ' +
+                    'data-rapado="' + (isRap ? '1' : '0') + '" ' +
+                    'data-hairtreat="' + (isHair ? '1' : '0') + '" ' +
                     'data-from="' + (svc.price_from ? '1' : '0') + '">' +
                   '<span class="tf-svc-check"></span>' +
                   '<span class="tf-svc-info">' +
@@ -249,6 +257,7 @@
       html += '</div></div>';
     });
     $('#tf-services-container').html(html);
+    syncRapadoLocks(); // render nuevo: sin bloqueos, nota oculta
     updateEstimate();
   }
 
@@ -300,6 +309,25 @@
   // y solo un servicio de barba por cita (los tratamientos sí se combinan).
   var EXCLUSIVE_CATS = ['corte', 'barba'];
 
+  // Rapado ↔ tratamientos del pelo: incompatibles (no hay pelo que teñir). Al
+  // marcar rapado se deshabilitan/desmarcan esos tratamientos, y viceversa.
+  function syncRapadoLocks() {
+    var rapadoChecked = false, hairChecked = false;
+    $('.tf-service-input:checked').each(function () {
+      if (this.getAttribute('data-rapado')    === '1') rapadoChecked = true;
+      if (this.getAttribute('data-hairtreat') === '1') hairChecked   = true;
+    });
+    $('.tf-service-input').each(function () {
+      var lock = false;
+      if (this.getAttribute('data-hairtreat') === '1') lock = rapadoChecked;
+      else if (this.getAttribute('data-rapado') === '1') lock = hairChecked;
+      else return;
+      this.disabled = lock;
+      $(this).closest('.tf-svc-item').toggleClass('tf-svc-disabled', lock);
+    });
+    $('#tf-rapado-note').toggleClass('tf-hidden', !(rapadoChecked || hairChecked));
+  }
+
   $(document).on('change', '.tf-service-input', function () {
     if (this.checked) {
       var cat = String($(this).data('cat') || '');
@@ -308,7 +336,15 @@
           .filter('[data-cat="' + cat + '"]')
           .prop('checked', false);
       }
+      // Rapado desmarca tratamientos del pelo (y al revés).
+      if (this.getAttribute('data-rapado') === '1') {
+        $('.tf-service-input:checked[data-hairtreat="1"]').prop('checked', false);
+      }
+      if (this.getAttribute('data-hairtreat') === '1') {
+        $('.tf-service-input:checked[data-rapado="1"]').prop('checked', false);
+      }
     }
+    syncRapadoLocks();
     $('#err-services').text('');
     // Cambiar servicios cambia la duración → invalidar hora elegida y disponibilidad.
     $('#tf-start-time').val('');

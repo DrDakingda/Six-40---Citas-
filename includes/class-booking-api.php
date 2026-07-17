@@ -547,6 +547,25 @@ class Six40_Booking_API {
 			return new WP_Error( 'too_many_barbas', 'Solo puedes elegir un servicio de barba por cita.' );
 		}
 
+		// Rapado (cortar al 0) es incompatible con tratamientos de color en el
+		// PELO (fantasía, mechas, iluminaciones, reducción de canas). El color de
+		// BARBA sí es compatible (va en la barba, no en el pelo).
+		$has_rapado = false;
+		$has_hair_treat = false;
+		foreach ( $valid_services as $s ) {
+			$cat  = $s['category'] ?? '';
+			$name = function_exists( 'mb_strtolower' ) ? mb_strtolower( $s['name'] ?? '' ) : strtolower( $s['name'] ?? '' );
+			if ( $cat === 'corte' && strpos( $name, 'rapado' ) !== false ) {
+				$has_rapado = true;
+			}
+			if ( $cat === 'tratamiento' && strpos( $name, 'barba' ) === false ) {
+				$has_hair_treat = true;
+			}
+		}
+		if ( $has_rapado && $has_hair_treat ) {
+			return new WP_Error( 'rapado_incompat', 'El rapado no admite tratamientos de color en el pelo.' );
+		}
+
 		// Calculate total duration
 		$total_duration = $this->calculate_service_duration( $service_ids );
 		$end_time = $this->calculate_end_time( $start_time, $total_duration );
