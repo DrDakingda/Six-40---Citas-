@@ -104,6 +104,7 @@ $page = sanitize_text_field( $_GET['page'] ?? 'six40-citas' );
       $btn_labels    = ['available'=>'✅ Disponible','vacation'=>'🏖️ Vacaciones','sick'=>'🤒 Baja'];
       $locations     = ['malaga'=>'Málaga','torremolinos'=>'Torremolinos'];
       $vacations_all = (array) get_option('six40_barber_vacations', []);
+      $schedule_exceptions_all = (array) get_option('six40_schedule_exceptions', []);
       // Horarios: mapa [barber_id][day_of_week] = [ [id,start,end], ... ]
       $schedules_raw = $api_barbers->get_all_barber_schedules();
       $sched_map = [];
@@ -163,6 +164,33 @@ $page = sanitize_text_field( $_GET['page'] ?? 'six40-citas' );
               <input type="date" class="six40-vac-from" aria-label="Desde">
               <input type="date" class="six40-vac-to" aria-label="Hasta">
               <button class="six40-vac-add-btn" data-id="<?= esc_attr($b['id']) ?>">Añadir</button>
+            </div>
+          </div>
+          <div class="six40-exc">
+            <div class="six40-exc-title">📅 Cambios de horario temporales</div>
+            <div class="six40-exc-list">
+              <?php $excs = $schedule_exceptions_all[$b['id']] ?? []; ?>
+              <?php if (empty($excs)): ?>
+                <span class="six40-exc-empty">Ninguno</span>
+              <?php else: foreach ($excs as $i=>$e):
+                $fs = date_i18n('d/m/Y', strtotime($e['start']??''));
+                $fe = date_i18n('d/m/Y', strtotime($e['end']??''));
+                $hs = substr($e['start_time']??'',0,5);
+                $he = substr($e['end_time']??'',0,5);
+                $type = $e['type'] ?? 'available';
+                $type_label = $type === 'unavailable' ? '❌ No disponible' : '✅ Disponible';
+              ?>
+                <span class="six40-exc-item"><?= esc_html("$type_label: $fs → $fe: $hs–$he") ?>
+                  <button class="six40-exc-del" data-id="<?= esc_attr($b['id']) ?>" data-index="<?= (int)$i ?>" title="Eliminar">✕</button>
+                </span>
+              <?php endforeach; endif; ?>
+            </div>
+            <div class="six40-exc-add">
+              <input type="date" class="six40-exc-from" aria-label="Desde" title="Desde">
+              <input type="date" class="six40-exc-to" aria-label="Hasta" title="Hasta">
+              <input type="text" class="six40-exc-start-time" aria-label="Hora inicio" placeholder="16:00" pattern="\d{2}:\d{2}" title="HH:MM">
+              <input type="text" class="six40-exc-end-time" aria-label="Hora fin" placeholder="20:00" pattern="\d{2}:\d{2}" title="HH:MM">
+              <button class="six40-exc-add-btn" data-id="<?= esc_attr($b['id']) ?>">Añadir</button>
             </div>
           </div>
           <button type="button" class="six40-sched-toggle" data-id="<?= esc_attr($b['id']) ?>">🕐 Editar horario</button>
