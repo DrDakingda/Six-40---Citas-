@@ -71,6 +71,18 @@
 .six40-vac-add input[type="date"]{border:1px solid var(--six40-border);border-radius:4px;padding:3px 6px;font-size:11px;flex:1 1 90px;min-width:0}
 .six40-vac-add-btn{border:1px solid var(--six40-accent);background:var(--six40-accent);color:#fff;border-radius:4px;padding:4px 12px;font-size:11px;cursor:pointer;white-space:nowrap}
 .six40-vac-add-btn:hover{background:#8e1523}
+.six40-exc{margin-top:12px;border-top:1px solid var(--six40-border);padding-top:10px;text-align:left}
+.six40-exc-title{font-size:11px;font-weight:700;color:var(--six40-muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px}
+.six40-exc-list{display:flex;flex-direction:column;gap:8px;margin-bottom:12px}
+.six40-exc-empty{font-size:12px;color:var(--six40-muted)}
+.six40-exc-item{display:flex;align-items:center;justify-content:space-between;gap:10px;background:rgba(76,175,80,.08);border:1px solid rgba(76,175,80,.3);border-radius:6px;padding:10px 12px;font-size:12px;word-break:break-word}
+.six40-exc-del{border:none;background:none;color:var(--six40-muted);cursor:pointer;font-size:12px;line-height:1;padding:0 2px}
+.six40-exc-del:hover{color:var(--six40-red)}
+.six40-exc-add{display:flex;flex-wrap:wrap;gap:5px;align-items:center}
+.six40-exc-add select{border:1px solid var(--six40-border);border-radius:4px;padding:3px 6px;font-size:11px;background:#fff;cursor:pointer}
+.six40-exc-add input[type="date"],.six40-exc-add input[type="time"]{border:1px solid var(--six40-border);border-radius:4px;padding:3px 6px;font-size:11px;flex:1 1 80px;min-width:0}
+.six40-exc-add-btn{border:1px solid var(--six40-accent);background:var(--six40-accent);color:#fff;border-radius:4px;padding:4px 12px;font-size:11px;cursor:pointer;white-space:nowrap}
+.six40-exc-add-btn:hover{background:#8e1523}
 .six40-sched-toggle{margin-top:10px;width:100%;border:1px solid var(--six40-border);background:#fff;border-radius:4px;padding:6px 10px;font-size:12px;cursor:pointer;transition:all .15s}
 .six40-sched-toggle:hover{background:var(--six40-gray)}
 .six40-sched-panel{border-top:2px solid var(--six40-border);padding:16px 24px 20px;background:#fafafa}

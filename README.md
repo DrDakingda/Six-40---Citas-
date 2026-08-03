@@ -1,54 +1,75 @@
 # Six40 Booking System
 
-Plugin de WordPress con el sistema de citas de **Sixcuarenta 640 Barbería** (Málaga y Torremolinos): formulario de reserva en 6 pasos estilo Typeform, panel de administración, sincronización con Google Calendar y gestión de cita por el cliente (cancelar/modificar por enlace con token).
+Plugin de WordPress con el sistema de citas de **Sixcuarenta 640 Barbería** (Málaga y Torremolinos).
 
-- **Producción:** https://sixcuarenta640.com/reservar/
-- **Base de datos:** Supabase (PostgreSQL vía REST)
-- **Calendarios:** Google Calendar (OAuth2, calendario por barbero + por local)
+**Características:**
+- Formulario de reserva estilo Typeform (6 pasos)
+- Panel de administración con gestión de citas y barberos
+- Cambios de horario temporales (múltiples franjas horarias por semana)
+- Sincronización bidireccional con Google Calendar
+- Gestión de citas por cliente (cancelar/modificar por enlace seguro)
+- Correos automáticos de confirmación y cancelación
+
+**Tech Stack:**
+- Base de datos: Supabase (PostgreSQL vía REST)
+- Calendarios: Google Calendar (OAuth2, por barbero + por local)
+- Versión: 1.20.0
 
 ## Estructura
 
 ```
 six40-booking-system.php      Bootstrap: hooks, AJAX, assets, cron
 includes/
-  class-booking-api.php       Lógica de citas y disponibilidad (Supabase REST)
-  class-google-calendar.php   Eventos, freeBusy y OAuth2 con Google
-  class-email.php             Correos de confirmación/cancelación (wp_mail)
-  class-admin-panel.php       Menú admin: Citas, Barberos, Configuración
-  class-manage.php            Página pública de gestión de cita (?six40_manage=TOKEN)
-admin/                        Vista y assets del panel de administración
+  class-booking-api.php       Lógica de disponibilidad, citas (Supabase)
+  class-google-calendar.php   Sincronización Google Calendar + OAuth2
+  class-email.php             Correos automáticos
+  class-admin-panel.php       Panel admin: Citas, Barberos, Configuración
+  class-manage.php            Gestión de cita por cliente (token-based)
+admin/                        UI y assets del panel de administración
 public/                       Formulario de reserva (shortcode) + assets
 assets/shortcode.php          Registro del shortcode [six40_booking]
-supabase-schema.sql           Schema CONSOLIDADO (instalación desde cero)
-supabase-migration-*.sql      Histórico de migraciones (instalaciones en marcha)
 ```
 
 ## Instalación
 
-1. **Supabase**: crear proyecto y ejecutar `supabase-schema.sql` en SQL Editor (ya incluye todas las migraciones; no hace falta ejecutarlas en una instalación nueva).
-2. **WordPress**: subir el plugin (zip de esta carpeta) y activarlo.
-3. **Configuración** (menú Six40 Booking → Configuración):
-   - Supabase: Project URL + **Service Role Key** (nunca la anon).
-   - Google: Client ID + Secret (OAuth2 tipo web), conectar, y asignar Calendar ID por local y por barbero.
-   - Email remitente y festivos.
-4. Insertar el shortcode `[six40_booking]` en la página de reservas.
+### 1. Supabase (Base de datos)
+- Crear proyecto en Supabase
+- Ejecutar `supabase-schema.sql` en SQL Editor
+- ✅ Incluye todas las tablas y esquema final (no requiere migraciones individuales)
 
-## Migraciones (solo instalaciones ya en marcha)
+### 2. WordPress
+- Subir el plugin (carpeta o ZIP)
+- Activar en Plugins
 
-Orden cronológico de ejecución en Supabase → SQL Editor (todas son seguras de re-ejecutar):
+### 3. Configuración
+Ir a **Six40 Booking → Configuración** y rellenar:
+- **Supabase**: Project URL + Service Role Key (nunca anon)
+- **Google Calendar**: Client ID + Secret (OAuth2)
+- Conectar con Google y asignar Calendar ID por local y barbero
+- Email remitente y días festivos (opcional)
 
-| # | Archivo | Qué hace |
-|---|---------|----------|
-| 1 | `supabase-migration-precios.sql` | Precios, categorías y servicios por local (recarga `services`) |
-| 2 | `supabase-migration-duraciones.sql` | Barbas a 20 min |
-| 3 | `supabase-migration-quitar-depilacion.sql` | Elimina servicios de depilación |
-| 4 | `supabase-migration-cancelaciones.sql` | Columnas de evento de Google en `appointments` |
-| 5 | `supabase-migration-gestion.sql` | Token de gestión por cita + índice |
-| 6 | `supabase-migration-sync-calendarios.sql` | Columna `google_events` (todos los calendarios) |
-| 7 | `supabase-migration-graciela-solo-malaga.sql` | Desactiva a Graciela en Torremolinos |
+### 4. Publicar
+Insertar el shortcode `[six40_booking]` en la página de reservas.
 
-## Desarrollo
+## Cambios de horario temporales
 
-- La configuración local sensible va en `six40-config.php` (gitignorado).
-- Reglas de duración por combinación (corte+barba=40 min, corte+mechas=60…) viven duplicadas en `class-booking-api.php::calculate_service_duration()` y `public/js/booking.js::computeDuration()` — si cambias una, cambia la otra.
-- Los barberos están hardcodeados en `public/js/booking.js` (`barbersByLocation`, avatares) además de en la tabla `barbers` de Supabase.
+**Función**: Agregar franjas horarias extras para barberos en semanas específicas.
+
+**Ejemplo**: Adrián normalmente trabaja 10:00-15:00, pero la próxima semana quieres que esté disponible también 16:00-20:00.
+
+**Desde el admin:**
+1. Ir a **Six40 Booking → Barberos**
+2. En la tarjeta del barbero, sección "CAMBIOS DE HORARIO TEMPORALES"
+3. Agregar: Desde/Hasta + Hora inicio/fin
+4. ✅ Las franjas se suman (no reemplazan)
+
+## Notas de desarrollo
+
+- Configuración local sensible: `six40-config.php` (gitignorado)
+- Reglas de duración: duplicadas en `class-booking-api.php` (backend) y `public/js/booking.js` (frontend) — sincronizar si cambias
+- Barberos hardcodeados: en `public/js/booking.js` (`barbersByLocation`, avatares) y tabla `barbers` en Supabase
+- Hardcodes actuales: Adrián (ID 8) disponible 3-7 agosto 16:00-20:00 en Torremolinos
+
+## Migraciones
+
+Si trabajas con una **instalación existente** (no una nueva), ver [MIGRATIONS.md](MIGRATIONS.md).

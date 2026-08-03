@@ -22,6 +22,8 @@ class Six40_Admin_Panel {
         add_action( 'wp_ajax_six40_delete_vacation',       [ $this, 'ajax_delete_vacation' ] );
         add_action( 'wp_ajax_six40_add_schedule',          [ $this, 'ajax_add_schedule' ] );
         add_action( 'wp_ajax_six40_delete_schedule',       [ $this, 'ajax_delete_schedule' ] );
+        add_action( 'wp_ajax_six40_add_schedule_exception',    [ $this, 'ajax_add_schedule_exception' ] );
+        add_action( 'wp_ajax_six40_delete_schedule_exception', [ $this, 'ajax_delete_schedule_exception' ] );
         add_action( 'admin_init',            [ $this, 'handle_oauth_callback' ] );
     }
 
@@ -299,5 +301,76 @@ class Six40_Admin_Panel {
             wp_send_json_error( $result->get_error_message() );
         }
         wp_send_json_success( [ 'id' => $id ] );
+    }
+
+    // ── Cambios de horario temporales (opción six40_schedule_exceptions) ───────
+
+    public function ajax_add_schedule_exception() {
+        check_ajax_referer( 'six40_admin_nonce', 'nonce' );
+        if ( ! current_user_can( 'manage_options' ) ) wp_send_json_error( 'Unauthorized' );
+
+        $barber_id = intval( $_POST['barber_id'] ?? 0 );
+        $type      = sanitize_text_field( $_POST['type'] ?? 'available' );
+        $start     = sanitize_text_field( $_POST['start'] ?? '' );
+        $end       = sanitize_text_field( $_POST['end'] ?? '' );
+        $start_time = sanitize_text_field( $_POST['start_time'] ?? '' );
+        $end_time   = sanitize_text_field( $_POST['end_time'] ?? '' );
+
+        $date_re = '/^\d{4}-\d{2}-\d{2}$/';
+        $time_re = '/^\d{2}:\d{2}$/';
+
+        if ( ! $barber_id || ! preg_match( $date_re, $start ) || ! preg_match( $date_re, $end ) ||
+             ! preg_match( $time_re, $start_time ) || ! preg_match( $time_re, $end_time ) ||
+             ! in_array( $type, [ 'available', 'unavailable' ], true ) ) {
+            wp_send_json_error( 'Parámetros inválidos.' );
+        }
+        if ( $end < $start ) {
+            wp_send_json_error( 'La fecha "hasta" no puede ser anterior a "desde".' );
+        }
+        if ( $end_time <= $start_time ) {
+            wp_send_json_error( 'La hora "hasta" debe ser posterior a "desde".' );
+        }
+
+        $exc = (array) get_option( 'six40_schedule_exceptions', [] );
+        if ( ! isset( $exc[ $barber_id ] ) || ! is_array( $exc[ $barber_id ] ) ) {
+            $exc[ $barber_id ] = [];
+        }
+        $exc[ $barber_id ][] = [
+            'type'       => $type,
+            'start'      => $start,
+            'end'        => $end,
+            'start_time' => $start_time,
+            'end_time'   => $end_time,
+        ];
+        usort( $exc[ $barber_id ], function ( $a, $b ) {
+            return strcmp( $a['start'] ?? '', $b['start'] ?? '' );
+        } );
+        update_option( 'six40_schedule_exceptions', $exc );
+
+        wp_send_json_success( [ 'barber_id' => $barber_id ] );
+    }
+
+    public function ajax_delete_schedule_exception() {
+        check_ajax_referer( 'six40_admin_nonce', 'nonce' );
+        if ( ! current_user_can( 'manage_options' ) ) wp_send_json_error( 'Unauthorized' );
+
+        $barber_id = intval( $_POST['barber_id'] ?? 0 );
+        $index     = intval( $_POST['index'] ?? -1 );
+
+        $exc = (array) get_option( 'six40_schedule_exceptions', [] );
+
+        if ( ! isset( $exc[ $barber_id ] ) || ! is_array( $exc[ $barber_id ] ) || ! isset( $exc[ $barber_id ][ $index ] ) ) {
+            wp_send_json_error( 'Cambio no encontrado.' );
+        }
+
+        unset( $exc[ $barber_id ][ $index ] );
+        $exc[ $barber_id ] = array_values( $exc[ $barber_id ] );
+
+        if ( empty( $exc[ $barber_id ] ) ) {
+            unset( $exc[ $barber_id ] );
+        }
+
+        update_option( 'six40_schedule_exceptions', $exc );
+        wp_send_json_success( [ 'barber_id' => $barber_id, 'index' => $index ] );
     }
 }
