@@ -273,18 +273,20 @@
   }
 
   // Duración total según reglas por combinación (espejo del backend).
-  // Con corte, cualquier tratamiento (incl. fantasía/mechas) no añade tiempo.
+  // Corte + fantasía = 60 min; corte + otras combos = corteTime (30 min).
   function computeDuration(list) {
-    var hasCorte = false, corteTime = 0, beards = 0, sumAll = 0;
+    var hasCorte = false, corteTime = 0, beards = 0, hasFantasia = false, sumAll = 0;
     list.forEach(function (s) {
-      var cat = s.category || '', dur = parseInt(s.duration, 10) || 0;
+      var cat = s.category || '', name = (s.name || '').toLowerCase(), dur = parseInt(s.duration, 10) || 0;
       sumAll += dur;
       if (cat === 'corte') { hasCorte = true; corteTime += dur; }
       else if (cat === 'barba') { beards++; }
+      if (name.indexOf('fantasía') > -1) { hasFantasia = true; }
     });
     if (!hasCorte) return sumAll;
     var block = corteTime;
     if (beards > 0) block = 40;
+    else if (hasFantasia) block = 60;
     return block;
   }
 

@@ -249,15 +249,21 @@ class Six40_Booking_API {
 			if ( in_array( $barber['id'], $barbers_off, true ) ) {
 				continue;
 			}
-			// Saltar barberos de vacaciones o de baja.
-			if ( ( $statuses[ $barber['id'] ] ?? 'available' ) !== 'available' ) {
-				continue;
-			}
 
-			// Get barber's schedule for this day
-			$schedule = $this->get_barber_schedule( $barber['id'], $day_of_week );
+			// Get barber's schedule for this day (considerando cambios temporales)
+			$regular_schedule = $this->get_barber_schedule( $barber['id'], $day_of_week );
+			$schedule = $this->get_schedule_for_date( $barber['id'], $date, $regular_schedule, $location );
+
+			// Si hay cambio temporal, permitir trabajo (ignora vacaciones/baja)
+			$has_exception = ! empty( $schedule ) && $schedule !== $regular_schedule;
+
 			if ( empty( $schedule ) ) {
 				continue; // Barber doesn't work this day
+			}
+
+			// Solo aplicar restricción de vacaciones/baja si NO hay cambio temporal
+			if ( ! $has_exception && ( $statuses[ $barber['id'] ] ?? 'available' ) !== 'available' ) {
+				continue;
 			}
 
 			$slots = $this->slots_for_barber( $schedule, $busy_map[ (int) $barber['id'] ] ?? [], $total_duration );
@@ -325,17 +331,17 @@ class Six40_Booking_API {
 		$today = wp_date( 'Y-m-d' );
 		$maxd  = wp_date( 'Y-m-d', strtotime( '+60 days' ) );
 
-		// Barberos del local, filtrados por barbero concreto y por estado.
+		// Barberos del local, filtrados por barbero concreto
 		$barbers = $this->get_barbers( $location );
 		if ( is_wp_error( $barbers ) || empty( $barbers ) ) {
 			return [];
 		}
 		$statuses = $this->get_barber_statuses( $location );
-		$barbers  = array_values( array_filter( (array) $barbers, function ( $b ) use ( $only_barber_id, $statuses ) {
+		$barbers  = array_values( array_filter( (array) $barbers, function ( $b ) use ( $only_barber_id ) {
 			if ( $only_barber_id && (int) $b['id'] !== (int) $only_barber_id ) {
 				return false;
 			}
-			return ( $statuses[ $b['id'] ] ?? 'available' ) === 'available';
+			return true; // Incluir todos (chequearemos estado por fecha después)
 		} ) );
 		if ( empty( $barbers ) ) {
 			return [];
@@ -437,11 +443,18 @@ class Six40_Booking_API {
 
 			foreach ( $barbers as $b ) {
 				$bid = (int) $b['id'];
-				if ( ! empty( $days_off[ $d ][ $bid ] ) || $this->barber_on_vacation( $vac, $bid, $d ) ) {
+				$regular_windows = (array) ( $sched[ $bid ][ $dow ] ?? [] );
+				$windows = $this->get_schedule_for_date( $bid, $d, $regular_windows, $location );
+
+				// Si hay cambio temporal, permitir trabajo (ignora vacaciones/baja/días libres)
+				$has_exception = ! empty( $windows ) && $windows !== $regular_windows;
+
+				if ( empty( $windows ) ) {
 					continue;
 				}
-				$windows = (array) ( $sched[ $bid ][ $dow ] ?? [] );
-				if ( empty( $windows ) ) {
+
+				// Solo aplicar restricciones si NO hay cambio temporal
+				if ( ! $has_exception && ( ! empty( $days_off[ $d ][ $bid ] ) || $this->barber_on_vacation( $vac, $bid, $d ) ) ) {
 					continue;
 				}
 				$slots = $this->slots_for_barber( $windows, $busy_by_day[ $d ][ $bid ] ?? [], $duration );
@@ -471,6 +484,37 @@ class Six40_Booking_API {
 			}
 		}
 		return false;
+	}
+
+	/** Obtener los horarios a usar para un barbero en una fecha (considerando cambios temporales) */
+	private function get_schedule_for_date( $barber_id, $date, $regular_windows, $location = '' ) {
+		$added_windows = [];
+
+		// HARDCODE: Adrián (ID 8) en Torremolinos, 3-7 agosto, 16:00-20:00
+		if ( $barber_id == 8 && $location === 'torremolinos' && $date >= '2026-08-03' && $date <= '2026-08-07' ) {
+			$added_windows[] = [ 'start_time' => '16:00:00', 'end_time' => '20:00:00' ];
+		}
+
+		$exceptions = (array) get_option( 'six40_schedule_exceptions', [] );
+		$barber_excs = (array) ( $exceptions[ $barber_id ] ?? [] );
+
+		foreach ( $barber_excs as $exc ) {
+			$s = $exc['start'] ?? '';
+			$e = $exc['end'] ?? '';
+			if ( $s && $e && $date >= $s && $date <= $e ) {
+				$start_time = $exc['start_time'] ?? '';
+				$end_time   = $exc['end_time'] ?? '';
+				if ( $start_time && $end_time ) {
+					$added_windows[] = [ 'start' => $start_time, 'end' => $end_time ];
+				}
+			}
+		}
+
+		// Si hay cambios temporales, SUMA al horario regular
+		if ( ! empty( $added_windows ) ) {
+			return array_merge( (array) $regular_windows, $added_windows );
+		}
+		return $regular_windows;
 	}
 
 	// ── Public: Appointments ──────────────────────────────────────────────────
@@ -930,8 +974,8 @@ class Six40_Booking_API {
 	 *  - Barbas: 20 min c/u.
 	 *  - Corte solo: su duración base (Corte/Niño 30, Rapado 20).
 	 *  - Corte + cualquier barba → 40 min.
-	 *  - Corte + cualquier tratamiento (color barba, reducción canas, iluminaciones,
-	 *    color fantasía, mechas) → no suma: se queda en el bloque del corte (30 min).
+	 *  - Corte + fantasía → 60 min.
+	 *  - Corte + reducción/iluminaciones → 30 min (corte base).
 	 *  - Sin corte: suma de duraciones base de los servicios elegidos.
 	 *
 	 * @param array $service_ids Service IDs
@@ -945,6 +989,7 @@ class Six40_Booking_API {
 		$has_corte = false;
 		$corte_time = 0;
 		$beards = 0;
+		$has_fantasia = false;
 		$sum_all = 0;
 
 		foreach ( $service_ids as $svc_id ) {
@@ -953,6 +998,7 @@ class Six40_Booking_API {
 				continue;
 			}
 			$cat  = $s['category'] ?? '';
+			$name = strtolower( $s['name'] ?? '' );
 			$dur  = (int) ( $s['duration'] ?? 0 );
 			$sum_all += $dur;
 
@@ -962,7 +1008,9 @@ class Six40_Booking_API {
 			} elseif ( $cat === 'barba' ) {
 				$beards++;
 			}
-			// Tratamientos: con corte no añaden tiempo (ver más abajo).
+			if ( strpos( $name, 'fantasía' ) !== false ) {
+				$has_fantasia = true;
+			}
 		}
 
 		// Sin corte: suma simple de duraciones base.
@@ -974,8 +1022,9 @@ class Six40_Booking_API {
 		$block = $corte_time;
 		if ( $beards > 0 ) {
 			$block = 40;                    // corte + cualquier barba
+		} elseif ( $has_fantasia ) {
+			$block = 60;                    // corte + fantasía
 		}
-		// Cualquier tratamiento con corte (incl. fantasía/mechas) no suma tiempo.
 
 		return $block;
 	}
